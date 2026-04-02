@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function Login() {
+function Login({ setIsLoggedIn }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -13,7 +13,7 @@ function Login() {
     console.log("Email:", email);
     console.log("Password:", password);
 
-    alert("Login Successful (Demo)");
+    setIsLoggedIn(true);
   };
 
   return (
