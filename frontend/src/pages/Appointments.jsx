@@ -1,14 +1,15 @@
 import { useState } from "react";
+import axios from "axios";
 
-function Appointments() {
-  const [appointments, setAppointments] = useState([]);
+function Appointments({ appointments = [], refreshAppointments }) {
   const [form, setForm] = useState({
-    doctor: "",
-    date: "",
-    hospital: "",
+    doctor_id: "",
+    hospital_id: "",
+    appointment_date: "",
+    notes: "",
   });
 
-  const [editIndex, setEditIndex] = useState(null);
+  const [editId, setEditId] = useState(null);
 
   const handleChange = (e) => {
     setForm({
@@ -17,161 +18,138 @@ function Appointments() {
     });
   };
 
-  const handleAddOrUpdate = () => {
-    if (!form.doctor || !form.date || !form.hospital) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    if (editIndex !== null) {
-      // UPDATE
-      const updated = [...appointments];
-      updated[editIndex] = form;
-      setAppointments(updated);
-      setEditIndex(null);
-    } else {
-      // ADD
-      setAppointments([...appointments, form]);
-    }
-
+  const resetForm = () => {
     setForm({
-      doctor: "",
-      date: "",
-      hospital: "",
+      doctor_id: "",
+      hospital_id: "",
+      appointment_date: "",
+      notes: "",
     });
   };
 
-  const handleDelete = (index) => {
-    const updated = appointments.filter((_, i) => i !== index);
-    setAppointments(updated);
+  // ✅ ADD / UPDATE
+  const handleAddOrUpdate = async () => {
+    try {
+      if (!form.doctor_id || !form.hospital_id || !form.appointment_date) {
+        alert("Fill all fields");
+        return;
+      }
+
+      if (editId) {
+        await axios.put(
+          `http://localhost:5000/api/appointments/${editId}`,
+          form
+        );
+      } else {
+        await axios.post(
+          "http://localhost:5000/api/appointments",
+          form
+        );
+      }
+
+      refreshAppointments();   // 🔥 VERY IMPORTANT
+      resetForm();
+      setEditId(null);
+
+    } catch (err) {
+      console.error("Error:", err);
+    }
   };
 
-  const handleEdit = (index) => {
-    setForm(appointments[index]);
-    setEditIndex(index);
+  // ✅ DELETE
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/appointments/${id}`
+      );
+      refreshAppointments();   // 🔥 VERY IMPORTANT
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // ✅ EDIT
+  const handleEdit = (appt) => {
+    setForm({
+      doctor_id: appt.doctor_id,
+      hospital_id: appt.hospital_id,
+      appointment_date: appt.appointment_date.slice(0, 10),
+      notes: appt.notes || "",
+    });
+    setEditId(appt.appointment_id);
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ padding: "20px" }}>
       <h2>Appointments</h2>
 
-      {/* Form */}
-      <div style={styles.form}>
+      {/* FORM */}
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
         <input
-          type="text"
-          name="doctor"
-          placeholder="Doctor Name"
-          value={form.doctor}
+          type="number"
+          name="doctor_id"
+          placeholder="Doctor ID"
+          value={form.doctor_id}
           onChange={handleChange}
-          style={styles.input}
         />
 
         <input
           type="date"
-          name="date"
-          value={form.date}
+          name="appointment_date"
+          value={form.appointment_date}
           onChange={handleChange}
-          style={styles.input}
+        />
+
+        <input
+          type="number"
+          name="hospital_id"
+          placeholder="Hospital ID"
+          value={form.hospital_id}
+          onChange={handleChange}
         />
 
         <input
           type="text"
-          name="hospital"
-          placeholder="Hospital"
-          value={form.hospital}
+          name="notes"
+          placeholder="Notes"
+          value={form.notes}
           onChange={handleChange}
-          style={styles.input}
         />
 
-        <button onClick={handleAddOrUpdate} style={styles.button}>
-          {editIndex !== null ? "Update" : "Add"}
+        <button onClick={handleAddOrUpdate}>
+          {editId ? "Update" : "Add"}
         </button>
       </div>
 
-      {/* List */}
+      {/* LIST */}
       <div style={{ marginTop: "20px" }}>
-        {appointments.length === 0 ? (
-          <p>No appointments yet</p>
-        ) : (
-          appointments.map((appt, index) => (
-            <div key={index} style={styles.card}>
-              <p><b>Doctor:</b> {appt.doctor}</p>
-              <p><b>Date:</b> {appt.date}</p>
-              <p><b>Hospital:</b> {appt.hospital}</p>
+        {appointments.length > 0 ? (
+          appointments.map((appt) => (
+            <div key={appt.appointment_id}>
+              <p>Doctor: {appt.doctor_id}</p>
+              <p>
+                Date:{" "}
+                {new Date(appt.appointment_date).toLocaleDateString()}
+              </p>
+              <p>Hospital: {appt.hospital_id}</p>
+              <p>Notes: {appt.notes}</p>
 
-              <div style={styles.actions}>
-                <button onClick={() => handleEdit(index)} style={styles.edit}>
-                  Edit
-                </button>
-                <button onClick={() => handleDelete(index)} style={styles.delete}>
-                  Delete
-                </button>
-              </div>
+              <button onClick={() => handleEdit(appt)}>Edit</button>
+              <button
+                onClick={() =>
+                  handleDelete(appt.appointment_id)
+                }
+              >
+                Delete
+              </button>
             </div>
           ))
+        ) : (
+          <p>No appointments yet</p>
         )}
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: "20px",
-  },
-
-  form: {
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-  },
-
-  input: {
-    padding: "10px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-  },
-
-  button: {
-    padding: "10px 15px",
-    background: "#7C3AED",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-
-  card: {
-    background: "white",
-    padding: "15px",
-    borderRadius: "10px",
-    marginTop: "10px",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-  },
-
-  actions: {
-    marginTop: "10px",
-    display: "flex",
-    gap: "10px",
-  },
-
-  edit: {
-    padding: "5px 10px",
-    background: "#3B82F6",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-
-  delete: {
-    padding: "5px 10px",
-    background: "#EF4444",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-  },
-};
 
 export default Appointments;

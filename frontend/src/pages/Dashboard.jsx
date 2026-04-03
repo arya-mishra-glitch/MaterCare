@@ -1,11 +1,25 @@
-import { useState } from "react";
-import { FaCalendarAlt, FaSyringe } from "react-icons/fa";
-import { MdMedicalServices } from "react-icons/md";
-import { GiMedicines } from "react-icons/gi";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { FaCalendarAlt } from "react-icons/fa";
 import Appointments from "./Appointments";
 
 function Dashboard() {
   const [activeNav, setActiveNav] = useState("Dashboard");
+  const [appointments, setAppointments] = useState([]);
+
+  // ✅ Fetch appointments
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = () => {
+    axios
+      .get("http://localhost:5000/api/appointments")
+      .then((res) => {
+        setAppointments(res.data);
+      })
+      .catch((err) => console.error(err));
+  };
 
   const navItems = [
     "Dashboard",
@@ -19,156 +33,90 @@ function Dashboard() {
     <div style={styles.app}>
       {/* Sidebar */}
       <div style={styles.sidebar}>
-        <div>
-          <h2 style={{ color: "#6D28D9" }}>MaterCare</h2>
+        <h2 style={{ color: "#8B5CF6" }}>MaterCare</h2>
 
-          {navItems.map((item) => (
-            <div
-              key={item}
-              style={{
-                padding: "12px",
-                margin: "6px 0",
-                cursor: "pointer",
-                background: activeNav === item ? "#EDE9FE" : "transparent",
-                borderRadius: "8px",
-                fontWeight: activeNav === item ? "600" : "normal",
-                transition: "all 0.2s ease",
-              }}
-              onClick={() => setActiveNav(item)}
-              onMouseEnter={(e) => {
-                if (activeNav !== item)
-                  e.currentTarget.style.background = "#f3f4f6";
-              }}
-              onMouseLeave={(e) => {
-                if (activeNav !== item)
-                  e.currentTarget.style.background = "transparent";
-              }}
-            >
-              {item}
-            </div>
-          ))}
-        </div>
+        {navItems.map((item) => (
+          <div
+            key={item}
+            style={{
+              ...styles.navItem,
+              background: activeNav === item ? "#2D2D2D" : "transparent",
+            }}
+            onClick={() => setActiveNav(item)}
+          >
+            {item}
+          </div>
+        ))}
 
-        {/* Profile */}
         <div style={styles.profile}>
           <div style={styles.avatar}>AS</div>
           <div>
-            <p style={{ margin: 0, fontWeight: "600" }}>Ananya S.</p>
-            <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>
-              Week 22
-            </p>
+            <p style={{ margin: 0 }}>Ananya S.</p>
+            <small>Week 22</small>
           </div>
         </div>
       </div>
 
       {/* Main */}
       <div style={styles.main}>
-        <h2 style={{ marginBottom: "20px" }}>{activeNav}</h2>
-
+        {/* DASHBOARD VIEW */}
         {activeNav === "Dashboard" && (
           <>
             {/* Banner */}
             <div style={styles.banner}>
               <div>
-                <h3 style={{ margin: 0 }}>
-                  You're in your 2nd trimester
-                </h3>
-                <p style={{ margin: 0, opacity: 0.9 }}>
-                  Baby is the size of a papaya — keep it up!
-                </p>
+                <h2>You're in your 2nd trimester</h2>
+                <p>Baby is the size of a papaya — keep it up!</p>
               </div>
               <div style={styles.week}>Week 22</div>
             </div>
 
             {/* Cards */}
             <div style={styles.cards}>
-              {/* Appointments */}
-              <div
-                style={{ ...styles.card, cursor: "pointer" }}
-                onClick={() => setActiveNav("Appointments")}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.transform = "translateY(-6px)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.transform = "translateY(0px)")
-                }
-              >
+              {/* ✅ APPOINTMENTS CARD (DYNAMIC) */}
+              <div style={styles.card}>
                 <div style={styles.cardHeader}>
-                  <h4 style={styles.cardTitle}>Appointments</h4>
-                  <FaCalendarAlt color="#7C3AED" />
+                  <h4>Appointments</h4>
+                  <FaCalendarAlt />
                 </div>
-                <h2 style={styles.value}>8</h2>
-                <span style={styles.badgeGreen}>+2 this month</span>
+
+                <h1>{appointments.length}</h1>
+                <p>{appointments.length} total</p>
               </div>
 
-              {/* Tests */}
-              <div
-                style={{ ...styles.card, cursor: "pointer" }}
-                onClick={() => setActiveNav("Tests")}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.transform = "translateY(-6px)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.transform = "translateY(0px)")
-                }
-              >
-                <div style={styles.cardHeader}>
-                  <h4 style={styles.cardTitle}>Tests Done</h4>
-                  <MdMedicalServices color="#10B981" />
-                </div>
-                <h2 style={styles.value}>5</h2>
-                <span style={styles.badgePurple}>3 remaining</span>
+              <div style={styles.card}>
+                <h4>Tests</h4>
+                <h1>5</h1>
               </div>
 
-              {/* Medications */}
-              <div
-                style={{ ...styles.card, cursor: "pointer" }}
-                onClick={() => setActiveNav("Medication")}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.transform = "translateY(-6px)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.transform = "translateY(0px)")
-                }
-              >
-                <div style={styles.cardHeader}>
-                  <h4 style={styles.cardTitle}>Medications</h4>
-                  <GiMedicines color="#3B82F6" />
-                </div>
-                <h2 style={styles.value}>3</h2>
-                <span style={styles.badgeBlue}>All on track</span>
+              <div style={styles.card}>
+                <h4>Medication</h4>
+                <h1>3</h1>
               </div>
 
-              {/* Vaccinations */}
-              <div
-                style={{ ...styles.card, cursor: "pointer" }}
-                onClick={() => setActiveNav("Vaccination")}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.transform = "translateY(-6px)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.transform = "translateY(0px)")
-                }
-              >
-                <div style={styles.cardHeader}>
-                  <h4 style={styles.cardTitle}>Vaccinations</h4>
-                  <FaSyringe color="#F59E0B" />
-                </div>
-                <h2 style={styles.value}>2</h2>
-                <span style={styles.badgeOrange}>1 due soon</span>
+              <div style={styles.card}>
+                <h4>Vaccination</h4>
+                <h1>2</h1>
               </div>
             </div>
           </>
         )}
 
-        {/* Other Sections */}
-        {activeNav === "Appointments" && <Appointments />}
-{activeNav !== "Dashboard" && activeNav !== "Appointments" && (
-  <div style={styles.placeholder}>
-    <h3>{activeNav} Module</h3>
-    <p>This section is under development</p>
-  </div>
-)}
+        {/* ✅ APPOINTMENTS PAGE */}
+        {activeNav === "Appointments" && (
+          <Appointments
+            appointments={appointments}                // ✅ PASS DATA
+            refreshAppointments={fetchAppointments}    // ✅ PASS FUNCTION
+          />
+        )}
+
+        {/* Placeholder */}
+        {activeNav !== "Dashboard" && activeNav !== "Appointments" && (
+          <div style={{ marginTop: "20px" }}>
+            <h3>{activeNav} Module</h3>
+            <p>Coming soon</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -178,55 +126,59 @@ const styles = {
   app: {
     display: "flex",
     height: "100vh",
+    background: "#121212",
+    color: "white",
+    fontFamily: "sans-serif",
   },
 
   sidebar: {
-    width: "240px",
-    background: "#fafafa",
+    width: "220px",
+    background: "#1E1E1E",
     padding: "20px",
-    borderRight: "1px solid #e5e7eb",
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
   },
 
+  navItem: {
+    padding: "10px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    marginTop: "10px",
+  },
+
   main: {
     flex: 1,
     padding: "30px",
-    background: "#f1f5f9",
   },
 
   banner: {
     background: "linear-gradient(135deg, #7C3AED, #A78BFA)",
     padding: "20px",
     borderRadius: "16px",
-    color: "white",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "25px",
   },
 
   week: {
     background: "rgba(255,255,255,0.2)",
-    padding: "8px 16px",
-    borderRadius: "20px",
-    fontWeight: "600",
+    padding: "10px 15px",
+    borderRadius: "10px",
   },
 
   cards: {
     display: "grid",
     gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "25px",
+    gap: "20px",
+    marginTop: "20px",
   },
 
   card: {
-    background: "#ffffff",
+    background: "#1E1E1E",
     padding: "20px",
     borderRadius: "16px",
-    boxShadow: "0 6px 16px rgba(0,0,0,0.08)",
-    border: "1px solid #f1f1f1",
-    transition: "transform 0.2s ease",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
   },
 
   cardHeader: {
@@ -235,74 +187,21 @@ const styles = {
     alignItems: "center",
   },
 
-  cardTitle: {
-    marginBottom: "6px",
-    color: "#555",
-    fontSize: "14px",
-  },
-
-  value: {
-    fontSize: "26px",
-    fontWeight: "700",
-    margin: "6px 0 12px",
-  },
-
-  badgeGreen: {
-    background: "#DCFCE7",
-    color: "#166534",
-    padding: "6px 12px",
-    borderRadius: "15px",
-    fontSize: "12px",
-  },
-
-  badgePurple: {
-    background: "#EDE9FE",
-    color: "#6D28D9",
-    padding: "6px 12px",
-    borderRadius: "15px",
-    fontSize: "12px",
-  },
-
-  badgeBlue: {
-    background: "#DBEAFE",
-    color: "#1E40AF",
-    padding: "6px 12px",
-    borderRadius: "15px",
-    fontSize: "12px",
-  },
-
-  badgeOrange: {
-    background: "#FEF3C7",
-    color: "#92400E",
-    padding: "6px 12px",
-    borderRadius: "15px",
-    fontSize: "12px",
-  },
-
   profile: {
     display: "flex",
-    alignItems: "center",
     gap: "10px",
-    paddingTop: "20px",
-    borderTop: "1px solid #eee",
+    alignItems: "center",
+    marginTop: "auto",
   },
 
   avatar: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "50%",
     background: "#7C3AED",
-    color: "white",
+    width: "35px",
+    height: "35px",
+    borderRadius: "50%",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: "bold",
-  },
-
-  placeholder: {
-    marginTop: "50px",
-    textAlign: "center",
-    color: "#555",
   },
 };
 
