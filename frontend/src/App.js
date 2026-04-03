@@ -1,18 +1,15 @@
-import { useState } from "react";
-import Login from "./pages/Login";
+import MaterCareLogin from "./pages/MaterCareLogin";
 import Dashboard from "./pages/Dashboard";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
   return (
-    <div>
-      {isLoggedIn ? (
-        <Dashboard />
-      ) : (
-        <Login setIsLoggedIn={setIsLoggedIn} />
-      )}
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MaterCareLogin />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
