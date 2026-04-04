@@ -66,11 +66,16 @@ exports.getMedicationRecords = (req, res) => {
   const sql = `
     SELECT
       mr.med_record_id,
+      mr.medication_id,
       mr.dosage,
       mr.start_date,
       mr.end_date,
       m.medication_name,
-      m.description
+      m.description,
+      CASE
+        WHEN mr.end_date IS NULL OR mr.end_date >= CURDATE() THEN 'active'
+        ELSE 'past'
+      END AS status
     FROM medication_record mr
     JOIN medication        m   ON mr.medication_id = m.medication_id
     JOIN pregnancy_profile pp  ON mr.pregnancy_id  = pp.pregnancy_id

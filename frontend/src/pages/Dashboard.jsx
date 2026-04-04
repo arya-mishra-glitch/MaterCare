@@ -4,6 +4,7 @@ import { FaCalendarAlt, FaFlask, FaPills, FaSyringe, FaSignOutAlt } from "react-
 import api from "../api";
 import Appointments from "./Appointments";
 import Tests from "./Tests";
+import Medication from "./Medication";
 
 function Dashboard() {
   const [activeNav, setActiveNav] = useState("Dashboard");
@@ -233,8 +234,13 @@ function Dashboard() {
           <Tests pregnancyId={pregnancyInfo?.pregnancy_id} />
         )}
 
+        {/* MEDICATION PAGE */}
+        {activeNav === "Medication" && (
+          <Medication pregnancyId={pregnancyInfo?.pregnancy_id} />
+        )}
+
         {/* PLACEHOLDER PAGES */}
-        {activeNav !== "Dashboard" && activeNav !== "Appointments" && activeNav !== "Tests" && (
+        {activeNav !== "Dashboard" && activeNav !== "Appointments" && activeNav !== "Tests" && activeNav !== "Medication" && (
           <div style={{ marginTop: "20px" }}>
             <h3>{activeNav} Module</h3>
             <p style={{ color: "#888" }}>Coming soon</p>
