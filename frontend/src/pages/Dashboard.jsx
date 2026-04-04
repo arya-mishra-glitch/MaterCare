@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaCalendarAlt, FaFlask, FaPills, FaSyringe, FaSignOutAlt } from "react-icons/fa";
 import api from "../api";
 import Appointments from "./Appointments";
+import Tests from "./Tests";
 
 function Dashboard() {
   const [activeNav, setActiveNav] = useState("Dashboard");
@@ -78,8 +79,8 @@ function Dashboard() {
     ? pregnancyInfo.week <= 13
       ? "1st trimester"
       : pregnancyInfo.week <= 26
-      ? "2nd trimester"
-      : "3rd trimester"
+        ? "2nd trimester"
+        : "3rd trimester"
     : "Loading...";
 
   const babySize = pregnancyInfo
@@ -227,8 +228,13 @@ function Dashboard() {
           />
         )}
 
+        {/* TESTS PAGE */}
+        {activeNav === "Tests" && (
+          <Tests pregnancyId={pregnancyInfo?.pregnancy_id} />
+        )}
+
         {/* PLACEHOLDER PAGES */}
-        {activeNav !== "Dashboard" && activeNav !== "Appointments" && (
+        {activeNav !== "Dashboard" && activeNav !== "Appointments" && activeNav !== "Tests" && (
           <div style={{ marginTop: "20px" }}>
             <h3>{activeNav} Module</h3>
             <p style={{ color: "#888" }}>Coming soon</p>
