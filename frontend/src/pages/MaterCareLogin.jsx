@@ -17,34 +17,28 @@ export default function MaterCareLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/login", {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const errorData = await res.json();
-        alert(errorData.message || "Login failed");
+        alert(data.message || "Login failed");
         setLoading(false);
         return;
       }
 
-      const data = await res.json();
-
-      console.log("Login response:", data);
-
-      alert("Login successful");
+      // ✅ Store JWT and user info
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       navigate("/dashboard");
-
     } catch (error) {
       console.error("Login error:", error);
-
       alert("Cannot connect to server. Make sure backend is running.");
-
     } finally {
       setLoading(false);
     }
@@ -56,19 +50,15 @@ export default function MaterCareLogin() {
       <div className="mc-left">
         <div className="mc-left-content">
           <h1 className="mc-logo">MaterCare</h1>
-
           <div className="mc-emoji">🤰</div>
-
           <h2 className="mc-title">
             Caring for You & <br />
             <span>Your Little One</span>
           </h2>
-
           <p className="mc-desc">
-            Expert guidance, compassionate care, and support
-            throughout your pregnancy journey.
+            Expert guidance, compassionate care, and support throughout your
+            pregnancy journey.
           </p>
-
           <div className="mc-pills">
             <span>Secure & Private</span>
             <span>Expert Doctors</span>
@@ -113,11 +103,7 @@ export default function MaterCareLogin() {
             <span className="mc-forgot">Forgot password?</span>
           </div>
 
-          <button
-            className="mc-btn"
-            onClick={handleSubmit}
-            disabled={loading}
-          >
+          <button className="mc-btn" onClick={handleSubmit} disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
           </button>
 

@@ -1,17 +1,16 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const appointmentController = require('../controllers/appointmentController');
+const auth = require("../middleware/auth");
+const {
+  getAppointments,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment,
+} = require("../controllers/appointmentController");
 
-// CREATE (POST)
-router.post('/', appointmentController.createAppointment);
-
-// READ (GET all)
-router.get('/', appointmentController.getAppointments);
-
-// UPDATE (PUT)
-router.put('/:id', appointmentController.updateAppointment);
-
-// DELETE (we will use next)
-router.delete('/:id', appointmentController.deleteAppointment);
+router.get("/",       auth, getAppointments);
+router.post("/",      auth, createAppointment);
+router.put("/:id",    auth, updateAppointment);
+router.delete("/:id", auth, deleteAppointment);
 
 module.exports = router;
