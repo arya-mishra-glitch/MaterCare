@@ -1,11 +1,21 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./MaterCareLogin.css";
 
 export default function MaterCareLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async () => {
+    if (!email || !password) {
+      alert("Enter email & password");
+      return;
+    }
+
+    setLoading(true);
+
     try {
       const res = await fetch("http://localhost:5000/api/login", {
         method: "POST",
@@ -15,13 +25,28 @@ export default function MaterCareLogin() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (res.ok) {
-        window.location.href = "/dashboard";
-      } else {
-        alert("Login failed");
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert(errorData.message || "Login failed");
+        setLoading(false);
+        return;
       }
-    } catch {
-      alert("Server not reachable");
+
+      const data = await res.json();
+
+      console.log("Login response:", data);
+
+      alert("Login successful");
+
+      navigate("/dashboard");
+
+    } catch (error) {
+      console.error("Login error:", error);
+
+      alert("Cannot connect to server. Make sure backend is running.");
+
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,15 +81,15 @@ export default function MaterCareLogin() {
       {/* RIGHT */}
       <div className="mc-right">
         <div className="mc-card">
-          <h2 className="mc-heading">Welcome Back !</h2>
+          <h2 className="mc-heading">Welcome Back!</h2>
           <p className="mc-sub">Sign in to your MaterCare account</p>
 
           <div className="mc-toggle">
             <button className="active">Sign In</button>
-            <button>Create Account</button>
+            <button disabled>Create Account</button>
           </div>
 
-          <label className="mc-label">Email or Username</label>
+          <label className="mc-label">Email</label>
           <input
             className="mc-input"
             placeholder="Enter email"
@@ -88,8 +113,12 @@ export default function MaterCareLogin() {
             <span className="mc-forgot">Forgot password?</span>
           </div>
 
-          <button className="mc-btn" onClick={handleSubmit}>
-            Sign In
+          <button
+            className="mc-btn"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? "Signing in..." : "Sign In"}
           </button>
 
           <div className="mc-divider">or continue with</div>

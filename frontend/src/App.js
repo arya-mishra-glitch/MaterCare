@@ -1,6 +1,6 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import MaterCareLogin from "./pages/MaterCareLogin";
 import Dashboard from "./pages/Dashboard";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 function App() {
   return (
