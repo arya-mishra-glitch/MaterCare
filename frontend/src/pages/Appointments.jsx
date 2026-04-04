@@ -3,7 +3,7 @@ import api from "../api";
 
 function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) {
   const [doctors, setDoctors] = useState([]);
-  const [availableSlots, setAvailableSlots] = useState([]);
+  const [allDoctorSlots, setAllDoctorSlots] = useState([]);
   const [form, setForm] = useState({
     doctor_id: "",
     hospital_id: "",
@@ -22,17 +22,30 @@ function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) 
       .catch((err) => console.error("Doctors fetch error:", err));
   }, []);
 
-  // ✅ Load availability slots when doctor + date are both chosen
+  // ✅ Load all availability slots when doctor is chosen
   useEffect(() => {
-    if (form.doctor_id && form.appointment_date) {
+    if (form.doctor_id) {
       api
-        .get(`/doctors/${form.doctor_id}/availability?date=${form.appointment_date}`)
-        .then((res) => setAvailableSlots(res.data.available_slots || []))
-        .catch(() => setAvailableSlots([]));
+        .get(`/doctors/${form.doctor_id}/availability`)
+        .then((res) => setAllDoctorSlots(res.data.available_slots || []))
+        .catch(() => setAllDoctorSlots([]));
     } else {
-      setAvailableSlots([]);
+      setAllDoctorSlots([]);
     }
-  }, [form.doctor_id, form.appointment_date]);
+  }, [form.doctor_id]);
+
+  const getSlotDateStr = (dateVal) => {
+    if (!dateVal) return "";
+    return typeof dateVal === "string" ? dateVal.slice(0, 10) : new Date(dateVal).toISOString().split("T")[0];
+  };
+
+  const availableDates = Array.from(
+    new Set(allDoctorSlots.map((slot) => getSlotDateStr(slot.available_date)))
+  ).sort();
+
+  const availableSlotsForDate = allDoctorSlots.filter(
+    (slot) => getSlotDateStr(slot.available_date) === form.appointment_date
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,7 +60,7 @@ function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) 
       availability_id: "",
       notes: "",
     });
-    setAvailableSlots([]);
+    setAllDoctorSlots([]);
     setEditId(null);
   };
 
@@ -59,6 +72,7 @@ function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) 
       ...prev,
       doctor_id: doctorId,
       hospital_id: selected?.hospital_id || "",
+      appointment_date: "",
       availability_id: "",
     }));
   };
@@ -132,7 +146,7 @@ function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) 
               <option value="">Select Doctor</option>
               {doctors.map((d) => (
                 <option key={d.doctor_id} value={d.doctor_id}>
-                  Dr. {d.name} — {d.specialization}
+                  Dr. {d.full_name} — {d.specialization}
                 </option>
               ))}
             </select>
@@ -152,39 +166,51 @@ function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) 
             />
           </div>
 
-          {/* Date */}
+          {/* Date Dropdown */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Date *</label>
-            <input
-              type="date"
+            <select
               name="appointment_date"
               value={form.appointment_date}
               onChange={handleChange}
               style={styles.input}
-              min={new Date().toISOString().split("T")[0]}
-            />
+              disabled={!form.doctor_id || availableDates.length === 0}
+            >
+              <option value="">
+                {!form.doctor_id 
+                  ? "Select a doctor first" 
+                  : availableDates.length === 0 
+                  ? "No dates available" 
+                  : "Select an available date"}
+              </option>
+              {availableDates.map((dateStr) => (
+                <option key={dateStr} value={dateStr}>
+                  {new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Available Time Slot */}
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Time Slot</label>
+            <label style={styles.label}>Time Slot *</label>
             <select
               name="availability_id"
               value={form.availability_id}
               onChange={handleChange}
               style={styles.input}
-              disabled={availableSlots.length === 0}
+              disabled={availableSlotsForDate.length === 0}
             >
               <option value="">
                 {form.doctor_id && form.appointment_date
-                  ? availableSlots.length === 0
+                  ? availableSlotsForDate.length === 0
                     ? "No slots available"
                     : "Select a slot"
                   : "Choose doctor & date first"}
               </option>
-              {availableSlots.map((slot) => (
+              {availableSlotsForDate.map((slot) => (
                 <option key={slot.availability_id} value={slot.availability_id}>
-                  {slot.start_time} – {slot.end_time}
+                  {slot.time_slot}
                 </option>
               ))}
             </select>
@@ -208,7 +234,7 @@ function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) 
           <button
             style={styles.primaryBtn}
             onClick={handleAddOrUpdate}
-            disabled={loading}
+            disabled={loading || !form.doctor_id || !form.appointment_date || !form.availability_id}
           >
             {loading ? "Saving..." : editId ? "Update" : "Add Appointment"}
           </button>
