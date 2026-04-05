@@ -1,28 +1,20 @@
 import { useState, useEffect } from "react";
 import api from "../api";
 
-function fmt(dateStr) {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+function fmt(d) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function StatusBadge({ status }) {
-  const isActive = status === "active";
+  const active = status === "active";
   return (
     <span style={{
-      fontSize: "11px",
-      fontWeight: "600",
-      padding: "4px 10px",
-      borderRadius: "20px",
-      letterSpacing: "0.3px",
-      flexShrink: 0,
-      background: isActive ? "#1A2D1A" : "#2D2D2D",
-      color: isActive ? "#34D399" : "#888",
-      border: isActive ? "1px solid #2D4D2D" : "1px solid #3D3D3D",
+      fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, whiteSpace: "nowrap",
+      background: active ? "var(--success-bg)" : "var(--input-bg)",
+      color: active ? "var(--success-text)" : "var(--muted-foreground)"
     }}>
-      {isActive ? "Active" : "Completed"}
+      {active ? "Active" : "Completed"}
     </span>
   );
 }
@@ -30,40 +22,33 @@ function StatusBadge({ status }) {
 function MedCard({ record }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={styles.card} onClick={() => setOpen(!open)}>
-      <div style={styles.cardTop}>
-        <div style={styles.cardIcon}>💊</div>
-        <div style={{ flex: 1 }}>
-          <p style={styles.cardName}>{record.medication_name}</p>
-          <p style={styles.cardDate}>
+    <div onClick={() => setOpen(!open)} className="med-card"
+      style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 13, padding: "14px 18px", marginBottom: 10, cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", transition: "all 0.2s" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 9, background: "var(--primary-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>💊</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>{record.medication_name}</p>
+          <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--muted-foreground)" }}>
             {fmt(record.start_date)} → {record.end_date ? fmt(record.end_date) : "Ongoing"}
           </p>
         </div>
         <StatusBadge status={record.status} />
-        <span style={styles.chevron}>{open ? "▲" : "▼"}</span>
+        <span style={{ fontSize: 10, color: "var(--muted-foreground)", marginLeft: 4 }}>{open ? "▲" : "▼"}</span>
       </div>
       {open && (
-        <div style={styles.cardBody}>
-          {record.description && (
-            <p style={styles.cardDesc}>{record.description}</p>
-          )}
-          <div style={{ display: "flex", gap: "24px" }}>
-            <div style={styles.detailCol}>
-              <span style={styles.detailLabel}>Dosage</span>
-              <span style={styles.detailValue}>
-                {record.dosage || <em style={{ color: "#666" }}>Not specified</em>}
-              </span>
-            </div>
-            <div style={styles.detailCol}>
-              <span style={styles.detailLabel}>Start Date</span>
-              <span style={styles.detailValue}>{fmt(record.start_date)}</span>
-            </div>
-            <div style={styles.detailCol}>
-              <span style={styles.detailLabel}>End Date</span>
-              <span style={styles.detailValue}>
-                {record.end_date ? fmt(record.end_date) : "Ongoing"}
-              </span>
-            </div>
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px dashed var(--border)" }}>
+          {record.description && <p style={{ fontSize: 13, color: "var(--muted-foreground)", fontStyle: "italic", margin: "0 0 12px" }}>{record.description}</p>}
+          <div style={{ display: "flex", gap: 24 }}>
+            {[
+              { label: "Dosage", value: record.dosage || "Not specified" },
+              { label: "Start Date", value: fmt(record.start_date) },
+              { label: "End Date", value: record.end_date ? fmt(record.end_date) : "Ongoing" },
+            ].map(d => (
+              <div key={d.label} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted-foreground)" }}>{d.label}</span>
+                <span style={{ fontSize: 13.5, color: "var(--foreground)" }}>{d.value}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -78,210 +63,114 @@ export default function Medication({ pregnancyId }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState("");
-
-  const [form, setForm] = useState({
-    medication_id: "",
-    dosage: "",
-    start_date: "",
-    end_date: "",
-  });
+  const [form, setForm] = useState({ medication_id: "", dosage: "", start_date: "", end_date: "" });
 
   const pId = pregnancyId || localStorage.getItem("pregnancy_id");
 
-  // ── fetch on mount ──
   useEffect(() => {
-    Promise.all([
-      api.get("/medications"),
-      api.get("/medications/catalogue"),
-    ])
-      .then(([rRecords, rCat]) => {
-        setRecords(rRecords.data);
-        setCatalogue(rCat.data);
-      })
-      .catch((e) => setError(e.message))
+    Promise.all([api.get("/medications"), api.get("/medications/catalogue")])
+      .then(([r, c]) => { setRecords(r.data); setCatalogue(c.data); })
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitMsg("");
-
-    if (!pId) {
-      setSubmitMsg("⚠ No active pregnancy found. Please create a pregnancy profile first.");
-      return;
-    }
-    if (!form.medication_id) {
-      setSubmitMsg("⚠ Please select a medication.");
-      return;
-    }
-
+  const handleSubmit = async e => {
+    e.preventDefault(); setSubmitMsg("");
+    if (!pId) { setSubmitMsg("⚠ No active pregnancy found."); return; }
+    if (!form.medication_id) { setSubmitMsg("⚠ Please select a medication."); return; }
     setSubmitting(true);
     try {
       await api.post("/medications", {
-        pregnancy_id: Number(pId),
-        medication_id: Number(form.medication_id),
-        dosage: form.dosage || undefined,
-        start_date: form.start_date || undefined,
-        end_date: form.end_date || undefined,
+        pregnancy_id: Number(pId), medication_id: Number(form.medication_id),
+        dosage: form.dosage || undefined, start_date: form.start_date || undefined, end_date: form.end_date || undefined,
       });
-
-      setSubmitMsg("✓ Medication record added successfully.");
+      setSubmitMsg("✓ Medication record added.");
       setForm({ medication_id: "", dosage: "", start_date: "", end_date: "" });
-
-      const refreshed = await api.get("/medications");
-      setRecords(refreshed.data);
+      const r = await api.get("/medications"); setRecords(r.data);
     } catch (err) {
       setSubmitMsg(`⚠ ${err.response?.data?.message || err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
-  const active = records.filter((r) => r.status === "active");
-  const past = records.filter((r) => r.status === "past");
+  const active = records.filter(r => r.status === "active");
+  const past = records.filter(r => r.status !== "active");
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Medication</h2>
+    <div style={{ color: "var(--foreground)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <style>{`
+        .med-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12) !important; transform: translateY(-1px); }
+        .med-input { transition: border-color 0.15s, box-shadow 0.15s; background: var(--input-bg) !important; color: var(--foreground) !important; border-color: var(--input-border) !important; }
+        .med-input:focus { outline:none; border-color: var(--primary) !important; box-shadow:0 0 0 3px rgba(232,121,160,0.15); }
+        .med-input option { background: var(--card); color: var(--foreground); }
+      `}</style>
 
-      {/* ── Banner ── */}
-      <div style={styles.banner}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: "18px" }}>Your Medications</h3>
-          <p style={{ margin: "6px 0 0", opacity: 0.85, fontSize: "14px" }}>
-            Track prescriptions & supplements
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "12px" }}>
-          <div style={styles.statBox}>
-            <span style={styles.statNum}>{active.length}</span>
-            <span style={styles.statLabel}>Active</span>
-          </div>
-          <div style={styles.statBox}>
-            <span style={styles.statNum}>{past.length}</span>
-            <span style={styles.statLabel}>Past</span>
-          </div>
-        </div>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--foreground)", margin: "0 0 4px" }}>Medication</h1>
+        <p style={{ fontSize: 13.5, color: "var(--muted-foreground)", margin: 0 }}>Track prescriptions and supplements</p>
       </div>
 
-      {error && <div style={styles.alertError}>{error}</div>}
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Total", value: records.length, color: "var(--primary)", bg: "var(--primary-light)" },
+          { label: "Active", value: active.length, color: "var(--success-text)", bg: "var(--success-bg)" },
+          { label: "Past", value: past.length, color: "var(--muted-foreground)", bg: "var(--input-bg)" },
+        ].map(s => (
+          <div key={s.label} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 13, padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+            <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted-foreground)" }}>{s.label}</p>
+            <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
 
-      <div style={styles.layout}>
+      {error && <Alert type="error">{error}</Alert>}
 
-        {/* ── LEFT: Records ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 22, alignItems: "start" }}>
         <div>
-          <h3 style={styles.sectionTitle}>Your Records</h3>
-
-          {loading ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {[1, 2, 3].map((i) => (
-                <div key={i} style={styles.skeleton} />
-              ))}
-            </div>
-          ) : records.length === 0 ? (
-            <div style={styles.empty}>
-              <span style={{ fontSize: "40px", display: "block", marginBottom: "10px" }}>💊</span>
-              <p>No medication records yet. Add your first one →</p>
-            </div>
+          <SectionTitle>Your Records</SectionTitle>
+          {loading ? <Skeletons /> : records.length === 0 ? (
+            <Empty icon="💊" text="No medication records yet. Add your first one →" />
           ) : (
             <>
-              {active.length > 0 && (
-                <div style={{ marginBottom: "20px" }}>
-                  <p style={styles.groupLabel}>Active Medications ({active.length})</p>
-                  {active.map((r) => <MedCard key={r.med_record_id} record={r} />)}
-                </div>
-              )}
-              {past.length > 0 && (
-                <div>
-                  <p style={styles.groupLabel}>Past Medications ({past.length})</p>
-                  {past.map((r) => <MedCard key={r.med_record_id} record={r} />)}
-                </div>
-              )}
+              {active.length > 0 && <Group label={`Active Medications (${active.length})`}>{active.map(r => <MedCard key={r.med_record_id} record={r} />)}</Group>}
+              {past.length > 0 && <Group label={`Past Medications (${past.length})`}>{past.map(r => <MedCard key={r.med_record_id} record={r} />)}</Group>}
             </>
           )}
         </div>
 
-        {/* ── RIGHT: Add Form ── */}
-        <div style={styles.formWrap}>
-          <h3 style={styles.formTitle}>➕ Add Medication</h3>
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: "22px", position: "sticky", top: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)", margin: "0 0 18px", display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ background: "var(--primary-light)", color: "var(--primary)", borderRadius: 7, padding: "3px 8px", fontSize: 11 }}>New</span>
+            Add Medication
+          </h3>
           <form onSubmit={handleSubmit}>
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>Medication *</label>
-              <select
-                name="medication_id"
-                value={form.medication_id}
-                onChange={handleChange}
-                style={styles.input}
-                required
-              >
+            <Field label="Medication *">
+              <select name="medication_id" value={form.medication_id} onChange={handleChange} required className="med-input" style={inputStyle}>
                 <option value="">— Select medication —</option>
-                {catalogue.map((m) => (
-                  <option key={m.medication_id} value={m.medication_id}>
-                    {m.medication_name}
-                  </option>
-                ))}
+                {catalogue.map(m => <option key={m.medication_id} value={m.medication_id}>{m.medication_name}</option>)}
               </select>
-              {form.medication_id && (
-                <p style={styles.hint}>
-                  {catalogue.find((c) => c.medication_id === Number(form.medication_id))?.description}
-                </p>
-              )}
-            </div>
+              {form.medication_id && <p style={hintStyle}>{catalogue.find(c => c.medication_id === Number(form.medication_id))?.description}</p>}
+            </Field>
 
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>Dosage</label>
-              <input
-                type="text"
-                name="dosage"
-                value={form.dosage}
-                onChange={handleChange}
-                style={styles.input}
-                placeholder="e.g. 1 tablet/day"
-              />
-            </div>
+            <Field label="Dosage">
+              <input type="text" name="dosage" value={form.dosage} onChange={handleChange}
+                placeholder="e.g. 1 tablet/day" className="med-input" style={inputStyle} />
+            </Field>
 
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>Start Date</label>
-              <input
-                type="date"
-                name="start_date"
-                value={form.start_date}
-                onChange={handleChange}
-                style={styles.input}
-              />
-            </div>
+            <Field label="Start Date">
+              <input type="date" name="start_date" value={form.start_date} onChange={handleChange} className="med-input" style={inputStyle} />
+            </Field>
 
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>
-                End Date <span style={{ color: "#666", fontSize: "11px" }}>(leave blank for ongoing)</span>
-              </label>
-              <input
-                type="date"
-                name="end_date"
-                value={form.end_date}
-                onChange={handleChange}
-                style={styles.input}
-              />
-            </div>
+            <Field label="End Date (blank = ongoing)">
+              <input type="date" name="end_date" value={form.end_date} onChange={handleChange} className="med-input" style={inputStyle} />
+            </Field>
 
-            {submitMsg && (
-              <div style={submitMsg.startsWith("✓") ? styles.alertSuccess : styles.alertError}>
-                {submitMsg}
-              </div>
-            )}
+            {submitMsg && <Alert type={submitMsg.startsWith("✓") ? "success" : "error"}>{submitMsg}</Alert>}
 
-            <button
-              type="submit"
-              style={{
-                ...styles.primaryBtn,
-                opacity: submitting ? 0.55 : 1,
-                cursor: submitting ? "not-allowed" : "pointer",
-              }}
-              disabled={submitting}
-            >
+            <button type="submit" disabled={submitting}
+              style={{ width: "100%", marginTop: 6, background: "var(--primary)", color: "#fff", border: "none", borderRadius: 9, padding: "11px 22px", fontSize: 13.5, fontWeight: 600, cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.55 : 1, transition: "opacity 0.15s" }}>
               {submitting ? "Adding…" : "+ Add Medication"}
             </button>
           </form>
@@ -291,232 +180,53 @@ export default function Medication({ pregnancyId }) {
   );
 }
 
-const styles = {
-  container: {
-    padding: "4px 0",
-    color: "white",
-    fontFamily: "sans-serif",
-  },
-  heading: {
-    fontSize: "24px",
-    marginBottom: "20px",
-    color: "#fff",
-  },
-  banner: {
-    background: "linear-gradient(135deg, #7C3AED, #A78BFA)",
-    padding: "24px",
-    borderRadius: "16px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "24px",
-  },
-  statBox: {
-    background: "rgba(255,255,255,0.2)",
-    padding: "10px 18px",
-    borderRadius: "10px",
-    textAlign: "center",
-    backdropFilter: "blur(4px)",
-  },
-  statNum: {
-    display: "block",
-    fontSize: "28px",
-    fontWeight: "800",
-    lineHeight: 1,
-  },
-  statLabel: {
-    fontSize: "11px",
-    textTransform: "uppercase",
-    opacity: 0.8,
-    letterSpacing: "0.5px",
-  },
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "1fr 380px",
-    gap: "24px",
-    alignItems: "start",
-  },
-  sectionTitle: {
-    fontSize: "16px",
-    color: "#A78BFA",
-    marginBottom: "14px",
-    paddingBottom: "10px",
-    borderBottom: "1px solid #2A2A2A",
-  },
-  groupLabel: {
-    fontSize: "11px",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    color: "#888",
-    marginBottom: "8px",
-  },
+function Field({ label, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+function SectionTitle({ children }) {
+  return <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)", margin: "0 0 14px", paddingBottom: 10, borderBottom: "1px solid var(--border)" }}>{children}</h3>;
+}
+function Group({ label, children }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <p style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted-foreground)", margin: "0 0 8px" }}>{label}</p>
+      {children}
+    </div>
+  );
+}
+function Alert({ type, children }) {
+  const s = type === "success"
+    ? { background: "var(--success-bg)", color: "var(--success-text)", border: "1px solid var(--success-bg)" }
+    : { background: "var(--danger-bg)", color: "var(--danger-text)", border: "1px solid var(--danger-bg)" };
+  return <div style={{ ...s, padding: "9px 13px", borderRadius: 8, fontSize: 13, fontWeight: 500, marginBottom: 12 }}>{children}</div>;
+}
+function Empty({ icon, text }) {
+  return (
+    <div style={{ background: "var(--card)", border: "1.5px dashed var(--border)", borderRadius: 13, padding: "36px 20px", textAlign: "center", color: "var(--muted-foreground)" }}>
+      <div style={{ fontSize: 34, marginBottom: 10 }}>{icon}</div>
+      <p style={{ margin: 0, fontSize: 13.5 }}>{text}</p>
+    </div>
+  );
+}
+function Skeletons() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {[1, 2, 3].map(i => <div key={i} style={{ height: 68, borderRadius: 13, background: "var(--input-bg)", border: "1px solid var(--border)" }} />)}
+    </div>
+  );
+}
 
-  // ── cards ──
-  card: {
-    background: "#1E1E1E",
-    border: "1px solid #2A2A2A",
-    borderRadius: "14px",
-    padding: "16px 20px",
-    marginBottom: "10px",
-    cursor: "pointer",
-    transition: "border-color 0.15s",
-  },
-  cardTop: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-  },
-  cardIcon: {
-    fontSize: "22px",
-    width: "42px",
-    height: "42px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#2D2070",
-    borderRadius: "10px",
-    flexShrink: 0,
-  },
-  cardName: {
-    margin: 0,
-    fontWeight: "700",
-    fontSize: "15px",
-    color: "#fff",
-  },
-  cardDate: {
-    margin: "2px 0 0",
-    fontSize: "13px",
-    color: "#888",
-  },
-  chevron: {
-    fontSize: "10px",
-    color: "#666",
-    marginLeft: "4px",
-  },
-  cardBody: {
-    marginTop: "14px",
-    paddingTop: "14px",
-    borderTop: "1px dashed #2A2A2A",
-  },
-  cardDesc: {
-    fontSize: "13px",
-    color: "#888",
-    fontStyle: "italic",
-    marginBottom: "10px",
-  },
-  detailCol: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  detailLabel: {
-    fontSize: "11px",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    color: "#888",
-  },
-  detailValue: {
-    fontSize: "14px",
-    color: "#fff",
-  },
-
-  // ── form ──
-  formWrap: {
-    background: "#1E1E1E",
-    border: "1px solid #2A2A2A",
-    borderRadius: "16px",
-    padding: "24px",
-    position: "sticky",
-    top: "24px",
-  },
-  formTitle: {
-    margin: "0 0 18px",
-    fontSize: "16px",
-    color: "#A78BFA",
-  },
-  fieldGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-    marginBottom: "14px",
-  },
-  label: {
-    fontSize: "12px",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-  },
-  input: {
-    background: "#2A2A2A",
-    border: "1px solid #3A3A3A",
-    borderRadius: "8px",
-    padding: "10px 12px",
-    color: "white",
-    fontSize: "14px",
-    outline: "none",
-    width: "100%",
-    boxSizing: "border-box",
-    fontFamily: "sans-serif",
-  },
-  hint: {
-    fontSize: "12px",
-    color: "#666",
-    fontStyle: "italic",
-    marginTop: "2px",
-  },
-  primaryBtn: {
-    width: "100%",
-    marginTop: "6px",
-    background: "#7C3AED",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    padding: "12px 22px",
-    fontSize: "14px",
-    fontWeight: "600",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "6px",
-  },
-
-  // ── alerts ──
-  alertError: {
-    padding: "10px 14px",
-    borderRadius: "8px",
-    fontSize: "13px",
-    fontWeight: "500",
-    background: "#2D1515",
-    color: "#F87171",
-    border: "1px solid #4D2020",
-    marginBottom: "10px",
-  },
-  alertSuccess: {
-    padding: "10px 14px",
-    borderRadius: "8px",
-    fontSize: "13px",
-    fontWeight: "500",
-    background: "#1A2D1A",
-    color: "#34D399",
-    border: "1px solid #2D4D2D",
-    marginBottom: "10px",
-  },
-
-  // ── empty & skeleton ──
-  empty: {
-    color: "#555",
-    background: "#1A1A1A",
-    borderRadius: "12px",
-    padding: "30px",
-    textAlign: "center",
-    border: "1px dashed #2D2D2D",
-  },
-  skeleton: {
-    height: "72px",
-    borderRadius: "14px",
-    background: "#1E1E1E",
-    border: "1px solid #2A2A2A",
-  },
+const inputStyle = {
+  background: "var(--input-bg, #f3f4f6)",
+  border: "1.5px solid var(--input-border, #eef0f4)",
+  borderRadius: 9, padding: "10px 12px",
+  color: "var(--foreground, #111827)",
+  fontSize: 13.5, width: "100%", boxSizing: "border-box",
+  fontFamily: "inherit", transition: "border-color 0.15s, box-shadow 0.15s",
 };
+const hintStyle = { fontSize: 12, color: "var(--muted-foreground)", fontStyle: "italic", margin: "3px 0 0" };

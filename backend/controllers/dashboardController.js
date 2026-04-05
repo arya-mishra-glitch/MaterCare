@@ -192,6 +192,7 @@ exports.getDashboard = async (req, res) => {
 
       pregnancy: pregnancyData
         ? {
+          pregnancy_id: pregnancyData.pregnancy_id,
           week: pregnancyData.week,
           daysToDue: pregnancyData.daysToDue,
           pregnancyCount: pregnancyData.pregnancyCount,
