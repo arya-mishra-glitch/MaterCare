@@ -17,7 +17,13 @@ app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/appointments", require("./routes/appointmentRoutes"));
 app.use("/api/doctors", require("./routes/doctorRoutes"));
 app.use("/api/pregnancy", require("./routes/pregnancyRoutes"));
-app.use("/api", require("./routes/healthRoutes"));   // /api/tests, /api/medications, /api/vaccinations
+app.use("/api", require("./routes/healthRoutes"));
+app.use("/api/documents", require("./routes/documentRoutes"));
+// /api/tests, /api/medications, /api/vaccinations
+
+const path = require("path");
+
+app.use("/api/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // ── Start ─────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;

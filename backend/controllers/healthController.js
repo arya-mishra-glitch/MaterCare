@@ -121,6 +121,9 @@ exports.addMedicationRecord = (req, res) => {
 // ============================================================
 
 // GET /api/vaccinations
+// Returns all vaccination records for the logged-in user,
+// grouped into "completed" (status = 'given') and "upcoming"
+// (status = 'scheduled' or 'missed').
 exports.getVaccinationRecords = (req, res) => {
   const user_id = req.user.user_id;
 
@@ -129,8 +132,10 @@ exports.getVaccinationRecords = (req, res) => {
       vr.vacc_record_id,
       vr.vaccination_date,
       vr.status,
+      v.vaccine_id,
       v.vaccine_name,
       v.recommended_age,
+      b.baby_id,
       b.name AS baby_name
     FROM vaccination_record vr
     JOIN vaccination v  ON vr.vaccine_id = v.vaccine_id
@@ -141,7 +146,11 @@ exports.getVaccinationRecords = (req, res) => {
 
   db.query(sql, [user_id], (err, results) => {
     if (err) return res.status(500).json({ message: "Database error.", error: err });
-    res.json(results);
+
+    const completed = results.filter((r) => r.status === "given");
+    const upcoming  = results.filter((r) => r.status !== "given");
+
+    res.json({ completed, upcoming, all: results });
   });
 };
 
@@ -154,20 +163,40 @@ exports.getVaccineCatalogue = (req, res) => {
 };
 
 // POST /api/vaccinations
-// Body: { baby_id, vaccine_id, vaccination_date, status }
+// Body: { baby_id, vaccine_id, vaccination_date (optional), status }
 exports.addVaccinationRecord = (req, res) => {
   const { baby_id, vaccine_id, vaccination_date, status } = req.body;
 
-  if (!baby_id || !vaccine_id || !vaccination_date) {
-    return res.status(400).json({ message: "baby_id, vaccine_id, and vaccination_date are required." });
+  if (!baby_id || !vaccine_id) {
+    return res.status(400).json({ message: "baby_id and vaccine_id are required." });
   }
+
+  const date = vaccination_date || new Date().toISOString().split("T")[0];
 
   db.query(
     `INSERT INTO vaccination_record (baby_id, vaccine_id, vaccination_date, status) VALUES (?, ?, ?, ?)`,
-    [baby_id, vaccine_id, vaccination_date, status || "scheduled"],
+    [baby_id, vaccine_id, date, status || "scheduled"],
     (err, result) => {
       if (err) return res.status(500).json({ message: "Database error.", error: err });
       res.status(201).json({ message: "Vaccination record added.", vacc_record_id: result.insertId });
+    }
+  );
+};
+
+// ============================================================
+// BABIES
+// ============================================================
+
+// GET /api/babies  — returns all babies belonging to the logged-in user
+exports.getBabies = (req, res) => {
+  const user_id = req.user.user_id;
+
+  db.query(
+    `SELECT baby_id, name, date_of_birth, gender FROM baby WHERE user_id = ? ORDER BY date_of_birth DESC`,
+    [user_id],
+    (err, results) => {
+      if (err) return res.status(500).json({ message: "Database error.", error: err });
+      res.json(results);
     }
   );
 };

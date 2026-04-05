@@ -5,6 +5,7 @@ const {
   getTestRecords, getTestCatalogue, addTestRecord,
   getMedicationRecords, getMedicationCatalogue, addMedicationRecord,
   getVaccinationRecords, getVaccineCatalogue, addVaccinationRecord,
+  getBabies,
 } = require("../controllers/healthController");
 
 // Tests
@@ -21,5 +22,8 @@ router.post("/medications",           auth, addMedicationRecord);
 router.get("/vaccinations",           auth, getVaccinationRecords);
 router.get("/vaccinations/catalogue", auth, getVaccineCatalogue);
 router.post("/vaccinations",          auth, addVaccinationRecord);
+
+// Babies (used by vaccination form)
+router.get("/babies",                 auth, getBabies);
 
 module.exports = router;

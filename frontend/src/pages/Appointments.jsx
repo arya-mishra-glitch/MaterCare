@@ -1,464 +1,341 @@
 import { useState, useEffect } from "react";
 import api from "../api";
 
-function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) {
+/* ─────────────────────────────────────────────
+   Shared design tokens — all use CSS variables
+───────────────────────────────────────────── */
+const T = {
+  primary: "var(--primary, #e879a0)",
+  primaryLight: "var(--primary-light, rgba(232,121,160,0.10))",
+  border: "var(--border, #eef0f4)",
+  card: "var(--card, #ffffff)",
+  bg: "var(--bg, #f8f9fb)",
+  rowBg: "var(--row-bg, #f9fafb)",
+  text: "var(--foreground, #111827)",
+  muted: "var(--muted-foreground, #6b7280)",
+  input: "var(--input-bg, #f3f4f6)",
+  success: { bg: "var(--success-bg)", text: "var(--success-text)" },
+  warning: { bg: "var(--warning-bg)", text: "var(--warning-text)" },
+  danger: { bg: "var(--danger-bg)", text: "var(--danger-text)" },
+  purple: { bg: "var(--purple-bg)", text: "var(--purple-text)" },
+};
+
+const statusStyle = (s) => {
+  const m = {
+    scheduled: { background: "var(--primary-light)", color: "var(--primary)" },
+    confirmed: { background: "var(--success-bg)", color: "var(--success-text)" },
+    completed: { background: "var(--purple-bg)", color: "var(--purple-text)" },
+    cancelled: { background: "var(--danger-bg)", color: "var(--danger-text)" },
+  };
+  return m[(s || "").toLowerCase()] || { background: "var(--input-bg)", color: "var(--muted-foreground)" };
+};
+
+export default function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) {
   const [doctors, setDoctors] = useState([]);
   const [allDoctorSlots, setAllDoctorSlots] = useState([]);
-  const [form, setForm] = useState({
-    doctor_id: "",
-    hospital_id: "",
-    appointment_date: "",
-    availability_id: "",
-    notes: "",
-  });
+  const [form, setForm] = useState({ doctor_id: "", hospital_id: "", appointment_date: "", availability_id: "", notes: "" });
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("upcoming");
 
-  // ✅ Load doctor list on mount
   useEffect(() => {
-    api
-      .get("/doctors")
-      .then((res) => setDoctors(res.data))
-      .catch((err) => console.error("Doctors fetch error:", err));
+    api.get("/doctors").then(r => setDoctors(r.data)).catch(console.error);
   }, []);
 
-  // ✅ Load all availability slots when doctor is chosen
   useEffect(() => {
     if (form.doctor_id) {
-      api
-        .get(`/doctors/${form.doctor_id}/availability`)
-        .then((res) => setAllDoctorSlots(res.data.available_slots || []))
+      api.get(`/doctors/${form.doctor_id}/availability`)
+        .then(r => setAllDoctorSlots(r.data.available_slots || []))
         .catch(() => setAllDoctorSlots([]));
-    } else {
-      setAllDoctorSlots([]);
-    }
+    } else setAllDoctorSlots([]);
   }, [form.doctor_id]);
 
-  const getSlotDateStr = (dateVal) => {
-    if (!dateVal) return "";
-    return typeof dateVal === "string" ? dateVal.slice(0, 10) : new Date(dateVal).toISOString().split("T")[0];
-  };
+  const slotDate = (v) => v ? (typeof v === "string" ? v.slice(0, 10) : new Date(v).toISOString().slice(0, 10)) : "";
+  const availableDates = [...new Set(allDoctorSlots.map(s => slotDate(s.available_date)))].sort();
+  const slotsForDate = allDoctorSlots.filter(s => slotDate(s.available_date) === form.appointment_date);
 
-  const availableDates = Array.from(
-    new Set(allDoctorSlots.map((slot) => getSlotDateStr(slot.available_date)))
-  ).sort();
+  const handleChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+  const resetForm = () => { setForm({ doctor_id: "", hospital_id: "", appointment_date: "", availability_id: "", notes: "" }); setAllDoctorSlots([]); setEditId(null); };
 
-  const availableSlotsForDate = allDoctorSlots.filter(
-    (slot) => getSlotDateStr(slot.available_date) === form.appointment_date
-  );
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const resetForm = () => {
-    setForm({
-      doctor_id: "",
-      hospital_id: "",
-      appointment_date: "",
-      availability_id: "",
-      notes: "",
-    });
-    setAllDoctorSlots([]);
-    setEditId(null);
-  };
-
-  // ✅ Auto-fill hospital when doctor is selected
-  const handleDoctorChange = (e) => {
-    const doctorId = e.target.value;
-    const selected = doctors.find((d) => String(d.doctor_id) === String(doctorId));
-    setForm((prev) => ({
-      ...prev,
-      doctor_id: doctorId,
-      hospital_id: selected?.hospital_id || "",
-      appointment_date: "",
-      availability_id: "",
-    }));
+  const handleDoctorChange = e => {
+    const d = doctors.find(x => String(x.doctor_id) === e.target.value);
+    setForm(p => ({ ...p, doctor_id: e.target.value, hospital_id: d?.hospital_id || "", appointment_date: "", availability_id: "" }));
   };
 
   const handleAddOrUpdate = async () => {
-    if (!form.doctor_id || !form.hospital_id || !form.appointment_date) {
-      alert("Please fill all required fields");
-      return;
-    }
-
+    if (!form.doctor_id || !form.hospital_id || !form.appointment_date) { alert("Please fill all required fields"); return; }
     setLoading(true);
     try {
-      if (editId) {
-        await api.put(`/appointments/${editId}`, { ...form, pregnancy_id });
-      } else {
-        await api.post("/appointments", { ...form, pregnancy_id });
-      }
-      refreshAppointments();
-      resetForm();
+      editId
+        ? await api.put(`/appointments/${editId}`, { ...form, pregnancy_id })
+        : await api.post("/appointments", { ...form, pregnancy_id });
+      refreshAppointments(); resetForm();
     } catch (err) {
-      console.error("Error saving appointment:", err);
       alert(err.response?.data?.message || "Failed to save appointment");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this appointment?")) return;
-    try {
-      await api.delete(`/appointments/${id}`);
-      refreshAppointments();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete appointment");
-    }
+    try { await api.delete(`/appointments/${id}`); refreshAppointments(); }
+    catch { alert("Failed to delete appointment"); }
   };
 
-  const handleEdit = (appt) => {
-    setForm({
-      doctor_id: appt.doctor_id,
-      hospital_id: appt.hospital_id,
-      appointment_date: appt.appointment_date.slice(0, 10),
-      availability_id: appt.availability_id || "",
-      notes: appt.notes || "",
-    });
-    setEditId(appt.appointment_id);
+  const handleEdit = (a) => {
+    setForm({ doctor_id: a.doctor_id, hospital_id: a.hospital_id, appointment_date: a.appointment_date.slice(0, 10), availability_id: a.availability_id || "", notes: a.notes || "" });
+    setEditId(a.appointment_id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Appointments</h2>
+    <div style={{ color: "var(--foreground)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <style>{`
+        .appt-input {
+          transition: border-color 0.15s, box-shadow 0.15s;
+          background: var(--input-bg, #f3f4f6) !important;
+          color: var(--foreground, #111827) !important;
+          border-color: var(--input-border, #eef0f4) !important;
+        }
+        .appt-input:focus { outline: none; border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(232,121,160,0.15); }
+        .appt-input option { background: var(--card); color: var(--foreground); }
+        .appt-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.12) !important; transform: translateY(-1px); }
+        .appt-card { transition: all 0.2s; }
+        .btn-edit:hover { background: var(--primary-light) !important; border-color: var(--primary) !important; color: var(--primary) !important; }
+        .btn-delete:hover { opacity: 0.8; }
+        .tab-pill { border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 500; padding: 7px 18px; border-radius: 999px; transition: all 0.18s; }
+        .tab-pill:hover { opacity: 0.85; }
+      `}</style>
 
-      {/* ── FORM ── */}
-      <div style={styles.form}>
-        <h3 style={styles.formTitle}>
-          {editId ? "✏️ Update Appointment" : "➕ New Appointment"}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.5px", color: "var(--foreground)", margin: "0 0 4px" }}>Appointments</h1>
+        <p style={{ fontSize: 13.5, color: "var(--muted-foreground)", margin: 0 }}>Manage your prenatal checkups and doctor visits</p>
+      </div>
+
+      {/* FORM CARD */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: "22px 24px", marginBottom: 28, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)", margin: "0 0 18px", display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ background: "var(--primary-light)", color: "var(--primary)", borderRadius: 7, padding: "4px 8px", fontSize: 12 }}>
+            {editId ? "Edit" : "New"}
+          </span>
+          {editId ? "Update Appointment" : "Book an Appointment"}
         </h3>
 
-        <div style={styles.formGrid}>
-          {/* Doctor Dropdown */}
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Doctor *</label>
-            <select
-              name="doctor_id"
-              value={form.doctor_id}
-              onChange={handleDoctorChange}
-              style={styles.input}
-            >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <Field label="Doctor *">
+            <select name="doctor_id" value={form.doctor_id} onChange={handleDoctorChange} className="appt-input" style={inputStyle}>
               <option value="">Select Doctor</option>
-              {doctors.map((d) => (
-                <option key={d.doctor_id} value={d.doctor_id}>
-                  Dr. {d.full_name} — {d.specialization}
-                </option>
+              {doctors.map(d => <option key={d.doctor_id} value={d.doctor_id}>Dr. {d.full_name} — {d.specialization}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Hospital">
+            <input className="appt-input" style={{ ...inputStyle, cursor: "not-allowed", opacity: 0.65 }}
+              value={doctors.find(d => String(d.doctor_id) === String(form.doctor_id))?.hospital_name || ""}
+              readOnly placeholder="Auto-filled from doctor" />
+          </Field>
+
+          <Field label="Date *">
+            <select name="appointment_date" value={form.appointment_date} onChange={handleChange}
+              disabled={!form.doctor_id || !availableDates.length} className="appt-input" style={inputStyle}>
+              <option value="">{!form.doctor_id ? "Select a doctor first" : !availableDates.length ? "No dates available" : "Select date"}</option>
+              {availableDates.map(d => (
+                <option key={d} value={d}>{new Date(d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          {/* Hospital (auto-filled, read-only) */}
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Hospital *</label>
-            <input
-              style={{ ...styles.input, color: "#999", cursor: "not-allowed" }}
-              value={
-                doctors.find((d) => String(d.doctor_id) === String(form.doctor_id))
-                  ?.hospital_name || ""
-              }
-              readOnly
-              placeholder="Auto-filled from doctor"
-            />
-          </div>
-
-          {/* Date Dropdown */}
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Date *</label>
-            <select
-              name="appointment_date"
-              value={form.appointment_date}
-              onChange={handleChange}
-              style={styles.input}
-              disabled={!form.doctor_id || availableDates.length === 0}
-            >
-              <option value="">
-                {!form.doctor_id 
-                  ? "Select a doctor first" 
-                  : availableDates.length === 0 
-                  ? "No dates available" 
-                  : "Select an available date"}
-              </option>
-              {availableDates.map((dateStr) => (
-                <option key={dateStr} value={dateStr}>
-                  {new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                </option>
-              ))}
+          <Field label="Time Slot *">
+            <select name="availability_id" value={form.availability_id} onChange={handleChange}
+              disabled={!slotsForDate.length} className="appt-input" style={inputStyle}>
+              <option value="">{form.doctor_id && form.appointment_date ? (!slotsForDate.length ? "No slots" : "Select slot") : "Choose doctor & date first"}</option>
+              {slotsForDate.map(s => <option key={s.availability_id} value={s.availability_id}>{s.time_slot}</option>)}
             </select>
-          </div>
+          </Field>
 
-          {/* Available Time Slot */}
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Time Slot *</label>
-            <select
-              name="availability_id"
-              value={form.availability_id}
-              onChange={handleChange}
-              style={styles.input}
-              disabled={availableSlotsForDate.length === 0}
-            >
-              <option value="">
-                {form.doctor_id && form.appointment_date
-                  ? availableSlotsForDate.length === 0
-                    ? "No slots available"
-                    : "Select a slot"
-                  : "Choose doctor & date first"}
-              </option>
-              {availableSlotsForDate.map((slot) => (
-                <option key={slot.availability_id} value={slot.availability_id}>
-                  {slot.time_slot}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Notes */}
-          <div style={{ ...styles.fieldGroup, gridColumn: "1 / -1" }}>
-            <label style={styles.label}>Notes</label>
-            <input
-              type="text"
-              name="notes"
-              placeholder="Any notes or reason for visit"
-              value={form.notes}
-              onChange={handleChange}
-              style={styles.input}
-            />
+          <div style={{ gridColumn: "1 / -1" }}>
+            <Field label="Notes">
+              <input type="text" name="notes" value={form.notes} onChange={handleChange}
+                placeholder="Reason for visit or any notes" className="appt-input" style={inputStyle} />
+            </Field>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-          <button
-            style={styles.primaryBtn}
-            onClick={handleAddOrUpdate}
+        <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+          <button onClick={handleAddOrUpdate}
             disabled={loading || !form.doctor_id || !form.appointment_date || !form.availability_id}
-          >
-            {loading ? "Saving..." : editId ? "Update" : "Add Appointment"}
+            style={{ background: "var(--primary)", color: "#fff", border: "none", borderRadius: 9, padding: "10px 22px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", opacity: (loading || !form.doctor_id || !form.appointment_date || !form.availability_id) ? 0.5 : 1, transition: "opacity 0.15s" }}>
+            {loading ? "Saving…" : editId ? "Update Appointment" : "Book Appointment"}
           </button>
           {editId && (
-            <button style={styles.cancelBtn} onClick={resetForm}>
+            <button onClick={resetForm}
+              style={{ background: "transparent", color: "var(--muted-foreground)", border: "1px solid var(--border)", borderRadius: 9, padding: "10px 18px", fontSize: 13.5, cursor: "pointer" }}>
               Cancel
             </button>
           )}
         </div>
       </div>
 
-      {/* ── LIST ── */}
-      <div style={{ marginTop: "30px" }}>
-        <h3 style={{ color: "#A78BFA", marginBottom: "14px" }}>
-          All Appointments ({appointments.length})
-        </h3>
+      {/* ── TABS + LIST ── */}
+      <div>
+        {/* Tab toggle row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+          {[
+            { key: "upcoming", label: "Upcoming", count: appointments.filter(a => isUpcoming(a)).length },
+            { key: "past",     label: "Past",     count: appointments.filter(a => isPast(a)).length },
+            { key: "cancelled",label: "Cancelled", count: appointments.filter(a => isCancelled(a)).length },
+          ].map(({ key, label, count }) => {
+            const active = activeTab === key;
+            return (
+              <button key={key} className="tab-pill"
+                onClick={() => setActiveTab(key)}
+                style={{
+                  background: active ? "var(--primary)" : "var(--card)",
+                  color: active ? "#fff" : "var(--muted-foreground)",
+                  border: active ? "none" : "1px solid var(--border)",
+                  boxShadow: active ? "0 2px 10px rgba(232,121,160,0.30)" : "none",
+                }}>
+                {label}
+                {count > 0 && (
+                  <span style={{
+                    marginLeft: 6,
+                    background: active ? "rgba(255,255,255,0.25)" : "var(--primary-light)",
+                    color: active ? "#fff" : "var(--primary)",
+                    fontSize: 11, fontWeight: 700,
+                    padding: "1px 7px", borderRadius: 999,
+                  }}>{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-        {appointments.length === 0 ? (
-          <div style={styles.empty}>No appointments yet. Add one above!</div>
-        ) : (
-          <div style={styles.list}>
-            {appointments.map((appt) => (
-              <div key={appt.appointment_id} style={styles.card}>
-                <div style={styles.cardLeft}>
-                  <div style={styles.dateBox}>
-                    <span style={styles.dateDay}>
-                      {new Date(appt.appointment_date).getDate()}
+        {/* Filtered list */}
+        {(() => {
+          const filtered = appointments.filter(a =>
+            activeTab === "upcoming"  ? isUpcoming(a) :
+            activeTab === "past"      ? isPast(a) :
+            isCancelled(a)
+          );
+
+          if (filtered.length === 0) return (
+            <div style={{ background: "var(--card)", border: "1.5px dashed var(--border)", borderRadius: 14, padding: "40px 20px", textAlign: "center", color: "var(--muted-foreground)" }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>📅</div>
+              <p style={{ margin: 0, fontSize: 14 }}>
+                {activeTab === "upcoming"  ? "No upcoming appointments. Book one above!" :
+                 activeTab === "past"      ? "No past appointments yet." :
+                                            "No cancelled appointments."}
+              </p>
+            </div>
+          );
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {filtered.map(appt => {
+                const dateObj = new Date(appt.appointment_date);
+                return (
+                  <div key={appt.appointment_id} className="appt-card"
+                    style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "16px 18px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+
+                    {/* Date box */}
+                    <div style={{ background: "var(--primary-light)", borderRadius: 10, padding: "8px 12px", textAlign: "center", minWidth: 52, flexShrink: 0 }}>
+                      <span style={{ display: "block", fontSize: 20, fontWeight: 800, color: "var(--primary)", lineHeight: 1 }}>
+                        {dateObj.getDate()}
+                      </span>
+                      <span style={{ display: "block", fontSize: 10, color: "var(--primary)", textTransform: "uppercase", marginTop: 2, fontWeight: 600 }}>
+                        {dateObj.toLocaleString("default", { month: "short" })}
+                      </span>
+                    </div>
+
+                    {/* Details */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>
+                        Dr. {appt.doctor_name || appt.doctor_id}
+                      </p>
+                      {appt.specialization && (
+                        <p style={{ margin: "1px 0 0", fontSize: 12, color: "var(--primary)", fontWeight: 500 }}>
+                          {appt.specialization}
+                        </p>
+                      )}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", marginTop: 5 }}>
+                        {(appt.time_slot || appt.start_time) && (
+                          <span style={{ fontSize: 12, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <ClockIcon /> {appt.time_slot || appt.start_time}
+                          </span>
+                        )}
+                        {appt.hospital_name && (
+                          <span style={{ fontSize: 12, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 4 }}>
+                            <PinIcon /> {appt.hospital_name}
+                          </span>
+                        )}
+                      </div>
+                      {appt.notes && (
+                        <span style={{ display: "inline-block", marginTop: 6, background: "var(--primary-light)", color: "var(--primary)", fontSize: 11, fontWeight: 500, padding: "2px 9px", borderRadius: 20 }}>
+                          {appt.notes}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Status badge */}
+                    <span style={{ ...statusStyle(appt.status), fontSize: 11, fontWeight: 600, padding: "4px 11px", borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0 }}>
+                      {appt.status ? appt.status.charAt(0).toUpperCase() + appt.status.slice(1) : "Scheduled"}
                     </span>
-                    <span style={styles.dateMonth}>
-                      {new Date(appt.appointment_date).toLocaleString("default", {
-                        month: "short",
-                      })}
-                    </span>
+
+                    {/* Actions */}
+                    <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
+                      <button className="btn-edit" onClick={() => handleEdit(appt)}
+                        style={{ background: "var(--row-bg)", color: "var(--muted-foreground)", border: "1px solid var(--border)", borderRadius: 7, padding: "6px 13px", cursor: "pointer", fontSize: 12.5, fontWeight: 500, transition: "all 0.15s" }}>
+                        Edit
+                      </button>
+                      <button className="btn-delete" onClick={() => handleDelete(appt.appointment_id)}
+                        style={{ background: "var(--danger-bg)", color: "var(--danger-text)", border: "1px solid var(--danger-bg)", borderRadius: 7, padding: "6px 13px", cursor: "pointer", fontSize: 12.5, fontWeight: 500, transition: "all 0.15s" }}>
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div style={styles.cardBody}>
-                  <p style={styles.cardDoctor}>
-                    Dr. {appt.doctor_name || appt.doctor_id}
-                  </p>
-                  <p style={styles.cardSub}>
-                    {appt.hospital_name || `Hospital #${appt.hospital_id}`}
-                    {appt.start_time && ` · ${appt.start_time}`}
-                  </p>
-                  {appt.notes && (
-                    <span style={styles.noteBadge}>{appt.notes}</span>
-                  )}
-                </div>
-                <div style={styles.cardActions}>
-                  <button
-                    style={styles.editBtn}
-                    onClick={() => handleEdit(appt)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    style={styles.deleteBtn}
-                    onClick={() => handleDelete(appt.appointment_id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
 }
 
-const styles = {
-  container: {
-    padding: "4px 0",
-    color: "white",
-    fontFamily: "sans-serif",
-  },
-  heading: {
-    fontSize: "24px",
-    marginBottom: "20px",
-    color: "#fff",
-  },
-  form: {
-    background: "#1E1E1E",
-    border: "1px solid #2A2A2A",
-    borderRadius: "16px",
-    padding: "24px",
-  },
-  formTitle: {
-    margin: "0 0 18px",
-    fontSize: "16px",
-    color: "#A78BFA",
-  },
-  formGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "14px",
-  },
-  fieldGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  label: {
-    fontSize: "12px",
-    color: "#888",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-  },
-  input: {
-    background: "#2A2A2A",
-    border: "1px solid #3A3A3A",
-    borderRadius: "8px",
-    padding: "10px 12px",
-    color: "white",
-    fontSize: "14px",
-    outline: "none",
-    width: "100%",
-    boxSizing: "border-box",
-  },
-  primaryBtn: {
-    background: "#7C3AED",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    padding: "10px 22px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "600",
-  },
-  cancelBtn: {
-    background: "transparent",
-    color: "#888",
-    border: "1px solid #3A3A3A",
-    borderRadius: "8px",
-    padding: "10px 22px",
-    cursor: "pointer",
-    fontSize: "14px",
-  },
-  list: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-  card: {
-    background: "#1E1E1E",
-    border: "1px solid #2A2A2A",
-    borderRadius: "14px",
-    padding: "16px 20px",
-    display: "flex",
-    alignItems: "center",
-    gap: "18px",
-  },
-  cardLeft: {},
-  dateBox: {
-    background: "#2D2070",
-    borderRadius: "10px",
-    padding: "8px 12px",
-    textAlign: "center",
-    minWidth: "48px",
-  },
-  dateDay: {
-    display: "block",
-    fontSize: "22px",
-    fontWeight: "800",
-    color: "#A78BFA",
-    lineHeight: 1,
-  },
-  dateMonth: {
-    display: "block",
-    fontSize: "11px",
-    color: "#7C6FCF",
-    textTransform: "uppercase",
-    marginTop: "2px",
-  },
-  cardBody: {
-    flex: 1,
-  },
-  cardDoctor: {
-    margin: 0,
-    fontWeight: "700",
-    fontSize: "15px",
-  },
-  cardSub: {
-    margin: "3px 0 6px",
-    color: "#888",
-    fontSize: "13px",
-  },
-  noteBadge: {
-    background: "#2D2D2D",
-    padding: "3px 10px",
-    borderRadius: "20px",
-    fontSize: "12px",
-    color: "#A78BFA",
-  },
-  cardActions: {
-    display: "flex",
-    gap: "8px",
-  },
-  editBtn: {
-    background: "#2D2D2D",
-    color: "#A78BFA",
-    border: "1px solid #3D3D3D",
-    borderRadius: "7px",
-    padding: "7px 14px",
-    cursor: "pointer",
-    fontSize: "13px",
-  },
-  deleteBtn: {
-    background: "#2D1515",
-    color: "#F87171",
-    border: "1px solid #4D2020",
-    borderRadius: "7px",
-    padding: "7px 14px",
-    cursor: "pointer",
-    fontSize: "13px",
-  },
-  empty: {
-    color: "#555",
-    background: "#1A1A1A",
-    borderRadius: "12px",
-    padding: "30px",
-    textAlign: "center",
-    border: "1px dashed #2D2D2D",
-  },
-};
+/* ── Helpers to classify appointments ── */
+const isUpcoming   = a => (a.status || "").toLowerCase() !== "cancelled" && (a.status || "").toLowerCase() !== "completed" && new Date(a.appointment_date) >= new Date(new Date().toDateString());
+const isPast       = a => (a.status || "").toLowerCase() === "completed"  || ((a.status || "").toLowerCase() !== "cancelled" && new Date(a.appointment_date) < new Date(new Date().toDateString()));
+const isCancelled  = a => (a.status || "").toLowerCase() === "cancelled";
 
-export default Appointments;
+/* ── Tiny inline SVG icons ── */
+const ClockIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+  </svg>
+);
+const PinIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+  </svg>
+);
+
+function Field({ label, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const inputStyle = {
+  background: "var(--input-bg, #f3f4f6)",
+  border: "1.5px solid var(--input-border, #eef0f4)",
+  borderRadius: 9,
+  padding: "10px 12px",
+  color: "var(--foreground, #111827)",
+  fontSize: 13.5,
+  width: "100%",
+  boxSizing: "border-box",
+  fontFamily: "inherit",
+};
