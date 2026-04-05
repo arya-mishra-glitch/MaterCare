@@ -1,70 +1,63 @@
-# Getting Started with Create React App
+# MaterCare Frontend — Updated Files
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## What Changed & Why
 
-## Available Scripts
+### 1. `src/api.js` ← NEW FILE (most important)
+A shared Axios instance that:
+- Automatically attaches `Authorization: Bearer <token>` to **every** request
+- Redirects to `/` and clears localStorage if a 401 (expired/invalid token) is received
+- All components import this instead of raw `axios`
 
-In the project directory, you can run:
+### 2. `src/App.js`
+- Added `<PrivateRoute>` — wraps `/dashboard` so unauthenticated users are redirected to `/`
+- No token in localStorage → can't access dashboard
 
-### `npm start`
+### 3. `src/pages/MaterCareLogin.jsx`
+- Changed API URL to `/api/auth/login` (matches new backend routes)
+- After successful login: stores `token` and `user` in `localStorage`
+- No more `alert("Login successful")` — just navigates directly
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### 4. `src/pages/Dashboard.jsx`
+- Fetches **pregnancy week** from `GET /api/pregnancy/week`
+- Fetches **Tests / Medications / Vaccinations counts** from real health endpoints
+- Shows dynamic trimester label and baby size based on week
+- Shows upcoming appointments list on dashboard home
+- User initials derived from stored user name
+- Logout button clears localStorage and redirects to login
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 5. `src/pages/Appointments.jsx`
+- Doctor field is now a **dropdown** (fetched from `GET /api/doctors`)
+- Hospital is **auto-filled** when a doctor is selected (no manual ID entry)
+- Date picker loads **available time slots** from `GET /api/doctors/:id/availability?date=`
+- All API calls use `api.js` (JWT attached automatically)
+- Better UI: date box card layout, edit/delete styled buttons, empty state
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## How to Integrate
 
-### `npm run build`
+1. Copy all files into your existing project, matching the paths:
+   ```
+   src/
+   ├── api.js                    ← NEW
+   ├── App.js                    ← REPLACE
+   └── pages/
+       ├── MaterCareLogin.jsx    ← REPLACE
+       ├── Dashboard.jsx         ← REPLACE
+       └── Appointments.jsx      ← REPLACE
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+2. Keep your existing `MaterCareLogin.css` — it's unchanged.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+3. Make sure these backend endpoints exist (from the rewritten backend):
+   - `POST /api/auth/login`             → returns `{ token, user }`
+   - `GET  /api/appointments`           → list (JWT protected)
+   - `POST /api/appointments`           → create (JWT protected)
+   - `PUT  /api/appointments/:id`       → update (JWT protected)
+   - `DELETE /api/appointments/:id`     → delete (JWT protected)
+   - `GET  /api/pregnancy/week`         → returns `{ week, start_date }`
+   - `GET  /api/doctors`                → returns `[{ doctor_id, name, specialization, hospital_id, hospital_name }]`
+   - `GET  /api/doctors/:id/availability?date=YYYY-MM-DD` → available slots
+   - `GET  /api/health/tests`
+   - `GET  /api/health/medications`
+   - `GET  /api/health/vaccinations`
