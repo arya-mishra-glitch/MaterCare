@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
 import api from "../api";
 
 /* ─────────────────────────────────────────────
@@ -30,7 +31,10 @@ const statusStyle = (s) => {
   return m[(s || "").toLowerCase()] || { background: "var(--input-bg)", color: "var(--muted-foreground)" };
 };
 
-export default function Appointments({ appointments = [], refreshAppointments, pregnancy_id }) {
+export default function Appointments() {
+  const { pregnancyInfo } = useOutletContext();
+  const pregnancy_id = pregnancyInfo?.pregnancy_id;
+  const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [allDoctorSlots, setAllDoctorSlots] = useState([]);
   const [form, setForm] = useState({ doctor_id: "", hospital_id: "", appointment_date: "", availability_id: "", notes: "" });
@@ -38,7 +42,10 @@ export default function Appointments({ appointments = [], refreshAppointments, p
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("upcoming");
 
+  const fetchAppointments = () => api.get("/appointments").then(r => setAppointments(r.data)).catch(console.error);
+
   useEffect(() => {
+    fetchAppointments();
     api.get("/doctors").then(r => setDoctors(r.data)).catch(console.error);
   }, []);
 
@@ -69,7 +76,7 @@ export default function Appointments({ appointments = [], refreshAppointments, p
       editId
         ? await api.put(`/appointments/${editId}`, { ...form, pregnancy_id })
         : await api.post("/appointments", { ...form, pregnancy_id });
-      refreshAppointments(); resetForm();
+      fetchAppointments(); resetForm();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to save appointment");
     } finally { setLoading(false); }
@@ -77,7 +84,7 @@ export default function Appointments({ appointments = [], refreshAppointments, p
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this appointment?")) return;
-    try { await api.delete(`/appointments/${id}`); refreshAppointments(); }
+    try { await api.delete(`/appointments/${id}`); fetchAppointments(); }
     catch { alert("Failed to delete appointment"); }
   };
 

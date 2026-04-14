@@ -66,3 +66,42 @@ exports.getCurrentWeek = (req, res) => {
     res.json({ pregnancy_id, week, start_date, due_date });
   });
 };
+
+// POST /api/pregnancy/onboard
+// Handles first-time setup: pregnancy details + basic user health details
+exports.onboardPregnancy = async (req, res) => {
+  const user_id = req.user.user_id;
+  const { start_date, due_date, blood_group, emergency_contact } = req.body;
+
+  if (!start_date) {
+    return res.status(400).json({ success: false, message: "start_date is required." });
+  }
+
+  const pool = db.promise();
+
+  try {
+    // 1. Create pregnancy profile
+    const [pregResult] = await pool.query(
+      `INSERT INTO pregnancy_profile (user_id, start_date, due_date, pregnancy_status) VALUES (?, ?, ?, 'active')`,
+      [user_id, start_date, due_date || null]
+    );
+
+    // 2. Update user blood group
+    if (blood_group) {
+        await pool.query(`UPDATE user SET blood_group = ? WHERE user_id = ?`, [blood_group, user_id]);
+    }
+
+    // 3. Add emergency contact
+    if (emergency_contact && emergency_contact.name && emergency_contact.phone_number) {
+        await pool.query(
+            `INSERT INTO emergency_contact (user_id, name, phone_number, relation) VALUES (?, ?, ?, ?)`,
+            [user_id, emergency_contact.name, emergency_contact.phone_number, emergency_contact.relation || null]
+        );
+    }
+
+    res.status(201).json({ success: true, message: "Onboarding completed successfully.", pregnancy_id: pregResult.insertId });
+  } catch (err) {
+    console.error("Onboard error:", err);
+    res.status(500).json({ success: false, message: "Server error during onboarding.", error: err.message });
+  }
+};

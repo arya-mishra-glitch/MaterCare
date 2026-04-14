@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useOutletContext } from "react-router-dom";
 import api from "../api";
 
 /* ─── helpers ──────────────────────────────────────────────────── */
@@ -64,7 +65,9 @@ function EmptyState({ filtered }) {
 }
 
 /* ─── main component ─────────────────────────────────────────────── */
-export default function Documents({ pregnancyId }) {
+export default function Documents() {
+  const { pregnancyInfo } = useOutletContext();
+  const pregnancyId = pregnancyInfo?.pregnancy_id;
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
