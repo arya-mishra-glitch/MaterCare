@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function MaterCareLogin() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function MaterCareSignup() {
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    phone: "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -12,23 +17,39 @@ export default function MaterCareLogin() {
     alert(`${provider} sign-in would open OAuth popup here in production. Please use the email/password sign in for local development.`);
   };
 
+  const handleChange = (e) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
   const handleSubmit = async () => {
     setError("");
-    if (!email || !password) { setError("Please enter your email and password."); return; }
+    const { first_name, last_name, email, password, phone } = formData;
+    
+    if (!first_name || !last_name || !email || !password) { 
+      setError("Please fill in all required fields (First Name, Last Name, Email, Password)."); 
+      return; 
+    }
+    
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const res = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || "Login failed."); return; }
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      navigate("/dashboard");
+      if (!res.ok) { 
+        setError(data.message || "Signup failed."); 
+        return; 
+      }
+      
+      // Navigate to login after successful signup
+      navigate("/login");
     } catch {
       setError("Cannot connect to server. Make sure the backend is running.");
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleKeyDown = e => { if (e.key === "Enter") handleSubmit(); };
@@ -39,8 +60,7 @@ export default function MaterCareLogin() {
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* Light mode variables */
-        .mc-login-right {
+        .mc-signup-right {
           --mc-bg: #f8f9fb;
           --mc-card: #ffffff;
           --mc-card-border: #eef0f4;
@@ -50,11 +70,6 @@ export default function MaterCareLogin() {
           --mc-input-border: #e5e7eb;
           --mc-toggle-bg: #f3f4f6;
           --mc-toggle-active: #ffffff;
-          --mc-social-bg: #ffffff;
-          --mc-social-border: #e5e7eb;
-          --mc-social-text: #374151;
-          --mc-divider: #eef0f4;
-          --mc-divider-text: #9ca3af;
           background: var(--mc-bg);
         }
 
@@ -83,24 +98,6 @@ export default function MaterCareLogin() {
           transform: translateY(-1px);
           box-shadow: 0 8px 24px rgba(232,121,160,0.35) !important;
         }
-        .mc-social-btn {
-          flex: 1;
-          padding: 10px;
-          border-radius: 9px;
-          border: 1.5px solid var(--mc-social-border);
-          background: var(--mc-social-bg);
-          cursor: pointer;
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--mc-social-text);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
-          transition: all 0.15s;
-          font-family: inherit;
-        }
-        .mc-social-btn:hover { opacity: 0.8; }
         .pill {
           display: inline-flex;
           align-items: center;
@@ -129,17 +126,17 @@ export default function MaterCareLogin() {
             <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px" }}>MaterCare</span>
           </div>
 
-          <div style={{ fontSize: 96, marginBottom: 24, display: "block", animation: "float 4s ease-in-out infinite" }}>🤰</div>
+          <div style={{ fontSize: 96, marginBottom: 24, display: "block", animation: "float 4s ease-in-out infinite" }}>👶</div>
 
           <h1 style={{ fontFamily: "'DM Serif Display', serif", fontSize: 32, lineHeight: 1.3, marginBottom: 12, fontWeight: 400 }}>
-            Caring for You &<br /><em>Your Little One</em>
+            Join MaterCare <br /><em>Today</em>
           </h1>
           <p style={{ fontSize: 14, opacity: 0.9, lineHeight: 1.6, marginBottom: 28 }}>
-            Expert guidance, compassionate care, and support throughout your pregnancy journey.
+            Start your journey with personalized insights and gentle reminders throughout your pregnancy.
           </p>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-            {["🔒 Secure & Private", "👩‍⚕️ Expert Doctors", "💬 24/7 Support", "👶 12,000+ Mothers"].map(p => (
+            {["🔒 Secure", "👩‍⚕️ Approved", "💡 Smart Reminders"].map(p => (
               <span key={p} className="pill">{p}</span>
             ))}
           </div>
@@ -147,32 +144,32 @@ export default function MaterCareLogin() {
       </div>
 
       {/* ── RIGHT PANEL ──────────────────────────────── */}
-      <div className="mc-login-right" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" }}>
+      <div className="mc-signup-right" style={{ flex: 1, display: "flex", flexFlow: "column", alignItems: "center", justifyContent: "center", padding: "20px 40px", overflowY: "auto" }}>
         <div style={{
-          width: "100%", maxWidth: 400,
+          width: "100%", maxWidth: 440,
           background: "var(--mc-card)",
           borderRadius: 22,
           padding: "36px 36px 32px",
           boxShadow: "0 20px 50px rgba(0,0,0,0.10)",
           border: "1px solid var(--mc-card-border)",
+          margin: "auto"
         }}>
-
           <div style={{ marginBottom: 24 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px", color: "var(--mc-text)", margin: "0 0 5px" }}>Welcome Back!</h2>
-            <p style={{ fontSize: 13.5, color: "var(--mc-muted)", margin: 0 }}>Sign in to your MaterCare account</p>
+            <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px", color: "var(--mc-text)", margin: "0 0 5px" }}>Create Account</h2>
+            <p style={{ fontSize: 13.5, color: "var(--mc-muted)", margin: 0 }}>Join the MaterCare community</p>
           </div>
 
-          {/* Tab toggle (cosmetic / navigation) */}
+          {/* Tab toggle (cosmetic) */}
           <div style={{ display: "flex", background: "var(--mc-toggle-bg)", borderRadius: 11, padding: 4, marginBottom: 24 }}>
             {["Sign In", "Create Account"].map((tab, i) => (
               <div key={tab} 
-                onClick={() => i === 1 ? navigate("/register") : null}
+                onClick={() => i === 0 ? navigate("/login") : null}
                 style={{
                   flex: 1, textAlign: "center", padding: "8px 0", borderRadius: 8, fontSize: 13.5, fontWeight: 500,
-                  cursor: i === 0 ? "default" : "pointer",
-                  background: i === 0 ? "var(--mc-toggle-active)" : "transparent",
-                  color: i === 0 ? "var(--mc-text)" : "var(--mc-muted)",
-                  boxShadow: i === 0 ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
+                  cursor: i === 0 ? "pointer" : "default",
+                  background: i === 1 ? "var(--mc-toggle-active)" : "transparent",
+                  color: i === 1 ? "var(--mc-text)" : "var(--mc-muted)",
+                  boxShadow: i === 1 ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
                 }}>
                 {tab}
               </div>
@@ -186,47 +183,52 @@ export default function MaterCareLogin() {
             </div>
           )}
 
-          {/* Email */}
-          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--mc-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Email</label>
-          <input
-            type="email" placeholder="Enter your email" value={email}
-            onChange={e => setEmail(e.target.value)} onKeyDown={handleKeyDown}
-            className="mc-field-input"
-          />
-
-          {/* Password */}
-          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--mc-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Password</label>
-          <input
-            type="password" placeholder="Enter your password" value={password}
-            onChange={e => setPassword(e.target.value)} onKeyDown={handleKeyDown}
-            className="mc-field-input"
-          />
-
-          {/* Options */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, fontSize: 12.5, color: "var(--mc-muted)" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-              <input type="checkbox" style={{ accentColor: "#e879a0" }} /> Remember me
-            </label>
-            <span style={{ color: "#e879a0", cursor: "pointer", fontWeight: 500 }}>Forgot password?</span>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--mc-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>First Name *</label>
+              <input type="text" name="first_name" placeholder="Priya" value={formData.first_name} onChange={handleChange} onKeyDown={handleKeyDown} className="mc-field-input" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--mc-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Last Name *</label>
+              <input type="text" name="last_name" placeholder="Sharma" value={formData.last_name} onChange={handleChange} onKeyDown={handleKeyDown} className="mc-field-input" />
+            </div>
           </div>
+
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--mc-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Email *</label>
+          <input type="email" name="email" placeholder="priya@example.com" value={formData.email} onChange={handleChange} onKeyDown={handleKeyDown} className="mc-field-input" />
+
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--mc-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Phone (Optional)</label>
+          <input type="tel" name="phone" placeholder="Your phone number" value={formData.phone} onChange={handleChange} onKeyDown={handleKeyDown} className="mc-field-input" />
+
+          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--mc-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: 5 }}>Password *</label>
+          <input type="password" name="password" placeholder="Create a password" value={formData.password} onChange={handleChange} onKeyDown={handleKeyDown} className="mc-field-input" />
 
           {/* Submit */}
           <button onClick={handleSubmit} disabled={loading} className="mc-submit-btn"
-            style={{ width: "100%", padding: "13px", borderRadius: 999, border: "none", background: "linear-gradient(135deg, #ec4899, #8b5cf6)", color: "#fff", fontWeight: 600, fontSize: 14.5, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1, boxShadow: "0 4px 14px rgba(232,121,160,0.30)", marginBottom: 20 }}>
-            {loading ? "Signing in…" : "Sign In"}
+            style={{ width: "100%", padding: "13px", borderRadius: 999, border: "none", background: "linear-gradient(135deg, #ec4899, #8b5cf6)", color: "#fff", fontWeight: 600, fontSize: 14.5, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1, boxShadow: "0 4px 14px rgba(232,121,160,0.30)", marginTop: 10 }}>
+            {loading ? "Creating Account…" : "Create Account"}
           </button>
 
           {/* Divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <div style={{ flex: 1, height: 1, background: "var(--mc-divider)" }} />
-            <span style={{ fontSize: 12, color: "var(--mc-divider-text)", whiteSpace: "nowrap" }}>or continue with</span>
-            <div style={{ flex: 1, height: 1, background: "var(--mc-divider)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 16px" }}>
+            <div style={{ flex: 1, height: 1, background: "var(--mc-card-border)" }} />
+            <span style={{ fontSize: 12, color: "var(--mc-muted)", whiteSpace: "nowrap" }}>or continue with</span>
+            <div style={{ flex: 1, height: 1, background: "var(--mc-card-border)" }} />
           </div>
 
           {/* Social */}
           <div style={{ display: "flex", gap: 10 }}>
             {[["G", "Google"], ["🍎", "Apple"]].map(([icon, label]) => (
-              <button key={label} className="mc-social-btn" onClick={() => handleSocialLogin(label)}>
+              <button 
+                key={label} 
+                className="mc-social-btn" 
+                onClick={() => handleSocialLogin(label)}
+                style={{
+                  flex: 1, padding: "10px", borderRadius: 9, border: "1.5px solid var(--mc-card-border)", 
+                  background: "var(--mc-card)", cursor: "pointer", fontSize: 13, fontWeight: 500, 
+                  color: "var(--mc-text)", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 
+                }}
+              >
                 <span style={{ fontWeight: 700 }}>{icon}</span> {label}
               </button>
             ))}

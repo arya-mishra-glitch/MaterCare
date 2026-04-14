@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
 import api from "../api";
 
 function fmt(d) {
@@ -48,7 +49,9 @@ function TestCard({ record }) {
   );
 }
 
-export default function Tests({ pregnancyId }) {
+export default function Tests() {
+  const { pregnancyInfo } = useOutletContext();
+  const pregnancyId = pregnancyInfo?.pregnancy_id;
   const [records, setRecords] = useState([]);
   const [catalogue, setCatalogue] = useState([]);
   const [loading, setLoading] = useState(true);

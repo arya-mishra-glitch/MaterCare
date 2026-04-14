@@ -331,9 +331,11 @@ CREATE TABLE `reminder` (
   `user_id` int(11) NOT NULL,
   `pregnancy_id` int(11) DEFAULT NULL,
   `baby_id` int(11) DEFAULT NULL,
-  `reminder_type` varchar(50) DEFAULT NULL,
-  `due_date` datetime DEFAULT NULL,
-  `status` enum('pending','sent','dismissed') NOT NULL DEFAULT 'pending'
+  `title` varchar(255) NOT NULL,
+  `type` varchar(50) DEFAULT 'general',
+  `reminder_date` date NOT NULL,
+  `reminder_time` time NOT NULL,
+  `status` enum('pending','done','dismissed') NOT NULL DEFAULT 'pending'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -384,6 +386,11 @@ CREATE TABLE `user` (
   `email` varchar(100) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
+  `profile_photo` varchar(255) DEFAULT NULL,
+  `blood_group` varchar(10) DEFAULT NULL,
+  `email_notifications` tinyint(1) DEFAULT 1,
+  `sms_notifications` tinyint(1) DEFAULT 0,
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
   `role` enum('patient','doctor','admin') NOT NULL DEFAULT 'patient',
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
