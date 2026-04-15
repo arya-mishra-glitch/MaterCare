@@ -23,6 +23,10 @@ app.use("/api",              require("./routes/healthRoutes"));
 app.use("/api/documents",    require("./routes/documentRoutes"));
 app.use("/api/reminders",    require("./routes/reminderRoutes"));
 app.use("/api/symptoms",     require("./routes/symptomRoutes"));
+app.use("/api/tests",        require("./routes/testRoutes"));
+app.use("/api/medications",  require("./routes/medicationRoutes"));
+app.use("/api/vaccinations", require("./routes/vaccinationRoutes"));
+app.use("/api/babies",       require("./routes/babyRoutes"));
 
 // ── Static uploads ───────────────────────────────────────────────────────────
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
