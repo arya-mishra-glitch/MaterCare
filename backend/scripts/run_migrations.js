@@ -1,4 +1,4 @@
-const db = require('./config/db');
+const db = require('../config/db');
 
 const q2 = `ALTER TABLE reminder
   ADD COLUMN title VARCHAR(255) NOT NULL,

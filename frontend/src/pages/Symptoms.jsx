@@ -119,11 +119,12 @@ export default function Symptoms() {
                   
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {groupedRecords[dateStr].map(rec => {
-                      const sevConfig = {
+                      const severityMap = {
                         mild: { bg: "var(--success-bg)", text: "var(--success-text)", label: "Mild" },
                         moderate: { bg: "var(--warning-bg)", text: "var(--warning-text)", label: "Moderate" },
                         severe: { bg: "var(--danger-bg)", text: "var(--danger-text)", label: "Severe" },
-                      }[rec.severity];
+                      };
+                      const sevConfig = severityMap[(rec.severity || "").toLowerCase()] || { bg: "rgba(156,163,175,0.15)", text: "var(--muted-foreground)", label: rec.severity || "Unknown" };
 
                       return (
                         <div key={rec.symptom_id} className="sym-card" style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 13, padding: "14px 16px", display: "flex", gap: 14 }}>

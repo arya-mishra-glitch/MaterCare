@@ -7,7 +7,7 @@
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET SQL_MODE = "";
 START TRANSACTION;
 SET time_zone = "+00:00";
 
@@ -380,7 +380,7 @@ INSERT INTO `test_record` (`test_record_id`, `pregnancy_id`, `test_id`, `test_da
 --
 
 CREATE TABLE `user` (
-  `user_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL AUTO_INCREMENT,
   `first_name` varchar(50) NOT NULL,
   `last_name` varchar(50) NOT NULL,
   `email` varchar(100) NOT NULL,
@@ -413,7 +413,7 @@ INSERT INTO `user` (`user_id`, `first_name`, `last_name`, `email`, `password_has
 --
 
 CREATE TABLE `vaccination` (
-  `vaccine_id` int(11) NOT NULL,
+  `vaccine_id` int(11) NOT NULL AUTO_INCREMENT,
   `vaccine_name` varchar(100) NOT NULL,
   `recommended_age` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -436,7 +436,7 @@ INSERT INTO `vaccination` (`vaccine_id`, `vaccine_name`, `recommended_age`) VALU
 --
 
 CREATE TABLE `vaccination_record` (
-  `vacc_record_id` int(11) NOT NULL,
+  `vacc_record_id` int(11) NOT NULL AUTO_INCREMENT,
   `baby_id` int(11) NOT NULL,
   `vaccine_id` int(11) NOT NULL,
   `vaccination_date` date NOT NULL,

@@ -1,4 +1,4 @@
-const db = require('./config/db');
+const db = require('../config/db');
 const p = db.promise();
 async function run() {
     await p.query("UPDATE user SET phone='+19999999999', sms_notifications=TRUE WHERE user_id=6");

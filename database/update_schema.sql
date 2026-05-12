@@ -13,4 +13,27 @@ ALTER TABLE `reminder`
   ADD COLUMN `title` VARCHAR(255) NOT NULL AFTER `baby_id`,
   CHANGE `reminder_type` `type` VARCHAR(50) DEFAULT 'general',
   CHANGE `due_date` `reminder_date` DATE NOT NULL,
-  ADD COLUMN `reminder_time` TIME NOT NULL AFTER `reminder_date`;
+  ADD COLUMN `reminder_time` TIME NOT NULL AFTER `reminder_date`,
+  ADD COLUMN `sms_sent` BOOLEAN DEFAULT FALSE;
+
+-- Step 2.5: Appointment table updates
+ALTER TABLE `appointment`
+  ADD COLUMN `sms_sent` BOOLEAN DEFAULT FALSE;
+
+
+-- Step 3: Symptom Log table
+CREATE TABLE IF NOT EXISTS `symptom_log` (
+  `symptom_id` INT NOT NULL AUTO_INCREMENT,
+  `pregnancy_id` INT NOT NULL,
+  `symptom_name` VARCHAR(255) NOT NULL,
+  `severity` ENUM('Mild', 'Moderate', 'Severe') NOT NULL,
+  `notes` TEXT DEFAULT NULL,
+  `logged_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`symptom_id`),
+
+  CONSTRAINT `fk_symptom_pregnancy`
+    FOREIGN KEY (`pregnancy_id`)
+    REFERENCES `pregnancy_profile` (`pregnancy_id`)
+    ON DELETE CASCADE
+);

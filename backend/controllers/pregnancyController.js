@@ -37,7 +37,19 @@ exports.createPregnancy = (req, res) => {
 
   db.query(sql, [user_id, start_date, due_date || null], (err, result) => {
     if (err) return res.status(500).json({ message: "Database error.", error: err });
-    res.status(201).json({ message: "Pregnancy profile created.", pregnancy_id: result.insertId });
+
+    // Safeguard: if insertId is 0 (misconfigured AUTO_INCREMENT), fetch the actual pregnancy_id
+    let pregnancyId = result.insertId;
+    if (!pregnancyId || pregnancyId === 0) {
+      db.query(`SELECT pregnancy_id FROM pregnancy_profile WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`, [user_id], (err2, rows) => {
+        if (err2 || rows.length === 0) {
+          return res.status(500).json({ message: "Pregnancy created but failed to retrieve ID." });
+        }
+        return res.status(201).json({ message: "Pregnancy profile created.", pregnancy_id: rows[0].pregnancy_id });
+      });
+    } else {
+      res.status(201).json({ message: "Pregnancy profile created.", pregnancy_id: pregnancyId });
+    }
   });
 };
 
@@ -86,6 +98,16 @@ exports.onboardPregnancy = async (req, res) => {
       [user_id, start_date, due_date || null]
     );
 
+    // Safeguard: if insertId is 0 (misconfigured AUTO_INCREMENT), fetch the actual pregnancy_id
+    let pregnancyId = pregResult.insertId;
+    if (!pregnancyId || pregnancyId === 0) {
+      const [rows] = await pool.query(
+        `SELECT pregnancy_id FROM pregnancy_profile WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
+        [user_id]
+      );
+      pregnancyId = rows.length > 0 ? rows[0].pregnancy_id : null;
+    }
+
     // 2. Update user blood group
     if (blood_group) {
         await pool.query(`UPDATE user SET blood_group = ? WHERE user_id = ?`, [blood_group, user_id]);
@@ -99,7 +121,7 @@ exports.onboardPregnancy = async (req, res) => {
         );
     }
 
-    res.status(201).json({ success: true, message: "Onboarding completed successfully.", pregnancy_id: pregResult.insertId });
+    res.status(201).json({ success: true, message: "Onboarding completed successfully.", pregnancy_id: pregnancyId });
   } catch (err) {
     console.error("Onboard error:", err);
     res.status(500).json({ success: false, message: "Server error during onboarding.", error: err.message });

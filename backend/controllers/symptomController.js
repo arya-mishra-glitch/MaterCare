@@ -28,11 +28,14 @@ exports.logSymptom = (req, res) => {
     return res.status(400).json({ message: "pregnancy_id, symptom_name, and severity are required" });
   }
 
+  // Capitalize severity to match DB enum ('Mild', 'Moderate', 'Severe')
+  const normalizedSeverity = severity.charAt(0).toUpperCase() + severity.slice(1).toLowerCase();
+
   const sql = `
     INSERT INTO symptom_log (pregnancy_id, symptom_name, severity, notes, logged_at) 
     VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
   `;
-  const params = [pregnancy_id, symptom_name, severity, notes || null, logged_at || null];
+  const params = [pregnancy_id, symptom_name, normalizedSeverity, notes || null, logged_at || null];
 
   db.query(sql, params, (err, result) => {
     if (err) return res.status(500).json({ message: "Database error", error: err });

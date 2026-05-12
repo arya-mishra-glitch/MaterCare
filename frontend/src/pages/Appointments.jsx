@@ -70,7 +70,8 @@ export default function Appointments() {
   };
 
   const handleAddOrUpdate = async () => {
-    if (!form.doctor_id || !form.hospital_id || !form.appointment_date) { alert("Please fill all required fields"); return; }
+    if (!pregnancy_id) { alert("Pregnancy profile not loaded. Please refresh the page."); return; }
+    if (!form.doctor_id || !form.hospital_id || !form.appointment_date || !form.availability_id) { alert("Please fill all required fields"); return; }
     setLoading(true);
     try {
       editId
@@ -169,8 +170,8 @@ export default function Appointments() {
 
         <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
           <button onClick={handleAddOrUpdate}
-            disabled={loading || !form.doctor_id || !form.appointment_date || !form.availability_id}
-            style={{ background: "var(--primary)", color: "#fff", border: "none", borderRadius: 9, padding: "10px 22px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", opacity: (loading || !form.doctor_id || !form.appointment_date || !form.availability_id) ? 0.5 : 1, transition: "opacity 0.15s" }}>
+            disabled={loading || !pregnancy_id || !form.doctor_id || !form.appointment_date || !form.availability_id}
+            style={{ background: "var(--primary)", color: "#fff", border: "none", borderRadius: 9, padding: "10px 22px", fontWeight: 600, fontSize: 13.5, cursor: "pointer", opacity: (loading || !pregnancy_id || !form.doctor_id || !form.appointment_date || !form.availability_id) ? 0.5 : 1, transition: "opacity 0.15s" }}>
             {loading ? "Saving…" : editId ? "Update Appointment" : "Book Appointment"}
           </button>
           {editId && (

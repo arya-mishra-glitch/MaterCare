@@ -26,7 +26,19 @@ exports.register = async (req, res) => {
         }
         return res.status(500).json({ message: "Database error.", error: err });
       }
-      res.status(201).json({ message: "Registered successfully.", user_id: result.insertId });
+
+      // Safeguard: if insertId is 0 (misconfigured AUTO_INCREMENT), fetch the actual user_id
+      let userId = result.insertId;
+      if (!userId || userId === 0) {
+        db.query(`SELECT user_id FROM user WHERE email = ? LIMIT 1`, [email], (err2, rows) => {
+          if (err2 || rows.length === 0) {
+            return res.status(500).json({ message: "User created but failed to retrieve user ID." });
+          }
+          return res.status(201).json({ message: "Registered successfully.", user_id: rows[0].user_id });
+        });
+      } else {
+        res.status(201).json({ message: "Registered successfully.", user_id: userId });
+      }
     });
   } catch (err) {
     res.status(500).json({ message: "Server error.", error: err });
