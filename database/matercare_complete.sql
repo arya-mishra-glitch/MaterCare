@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 12, 2026 at 07:45 AM
+-- Generation Time: May 12, 2026 at 07:52 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -33,7 +33,7 @@ CREATE TABLE `appointment` (
   `doctor_id` int(11) NOT NULL,
   `availability_id` int(11) DEFAULT NULL,
   `appointment_date` datetime NOT NULL,
-  `status` enum('scheduled','completed','cancelled') NOT NULL DEFAULT 'scheduled',
+  `status` enum('scheduled','completed','cancelled','missed') NOT NULL DEFAULT 'scheduled',
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `sms_sent` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -43,11 +43,12 @@ CREATE TABLE `appointment` (
 --
 
 INSERT INTO `appointment` (`appointment_id`, `pregnancy_id`, `doctor_id`, `availability_id`, `appointment_date`, `status`, `created_at`, `sms_sent`) VALUES
-(1, 1, 1, 1, '2025-05-01 09:00:00', 'scheduled', '2026-04-04 22:23:26', 0),
+(1, 1, 0, NULL, '0000-00-00 00:00:00', 'cancelled', '2026-04-04 22:23:26', 0),
 (2, 2, 2, 3, '2025-05-02 14:00:00', 'completed', '2026-04-04 22:23:26', 0),
 (3, 3, 1, NULL, '2025-06-10 11:00:00', 'scheduled', '2026-04-04 22:23:26', 0),
-(7, 1, 3, 15, '2026-04-04 00:00:00', 'scheduled', '2026-04-04 23:58:38', 0),
-(8, 5, 1, 20, '2026-05-16 00:00:00', 'scheduled', '2026-05-12 09:24:55', 0);
+(7, 1, 0, NULL, '0000-00-00 00:00:00', 'completed', '2026-04-04 23:58:38', 0),
+(8, 5, 1, 20, '2026-05-16 00:00:00', 'scheduled', '2026-05-12 09:24:55', 0),
+(9, 6, 1, 20, '2026-05-16 00:00:00', 'scheduled', '2026-05-12 15:05:40', 0);
 
 -- --------------------------------------------------------
 
@@ -86,16 +87,22 @@ CREATE TABLE `baby` (
   `name` varchar(100) DEFAULT NULL,
   `date_of_birth` date DEFAULT NULL,
   `gender` enum('male','female','other') DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp()
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `birth_weight` decimal(4,2) DEFAULT NULL,
+  `current_weight` decimal(4,2) DEFAULT NULL,
+  `blood_group` varchar(10) DEFAULT NULL,
+  `health_status` varchar(50) DEFAULT 'Healthy',
+  `delivery_type` enum('normal','c-section') DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `baby`
 --
 
-INSERT INTO `baby` (`baby_id`, `user_id`, `pregnancy_id`, `name`, `date_of_birth`, `gender`, `created_at`) VALUES
-(1, 2, 2, 'Baby Ananya', '2025-03-05', 'female', '2026-04-04 22:23:26'),
-(2, 1, 1, NULL, NULL, NULL, '2026-04-04 22:23:26');
+INSERT INTO `baby` (`baby_id`, `user_id`, `pregnancy_id`, `name`, `date_of_birth`, `gender`, `created_at`, `birth_weight`, `current_weight`, `blood_group`, `health_status`, `delivery_type`) VALUES
+(1, 2, 2, 'Baby Ananya', '2025-03-05', 'female', '2026-04-04 22:23:26', NULL, NULL, NULL, 'Healthy', NULL),
+(4, 1, 1, 'Aarav Sharma', '2025-10-17', 'male', '2026-05-12 22:32:28', 3.50, 4.10, 'AB+', 'Healthy', 'c-section'),
+(6, 8, 8, 'Asmita sharma', '2025-11-10', 'female', '2026-05-12 23:20:21', 3.45, 3.95, 'AB+', 'Healthy', 'c-section');
 
 -- --------------------------------------------------------
 
@@ -152,7 +159,7 @@ INSERT INTO `doctor_availability` (`availability_id`, `doctor_id`, `available_da
 (12, 2, '2026-04-11', '10:00-11:00', 'available'),
 (13, 2, '2026-04-11', '11:00-12:00', 'available'),
 (14, 2, '2026-04-14', '14:00-15:00', 'available'),
-(15, 3, '2026-04-05', '09:00-10:00', 'booked'),
+(15, 3, '2026-04-05', '09:00-10:00', 'available'),
 (16, 3, '2026-04-05', '10:00-11:00', 'available'),
 (17, 3, '2026-04-08', '14:00-15:00', 'available'),
 (18, 3, '2026-04-12', '09:00-10:00', 'available'),
@@ -207,7 +214,9 @@ INSERT INTO `emergency_contact` (`contact_id`, `user_id`, `name`, `phone_number`
 (2, 2, 'Suresh Reddy', '9876500002', 'Husband'),
 (3, 3, 'Lakshmi Menon', '9876500003', 'Mother'),
 (4, 2, 'Ananya', '9123456780', 'Reddy'),
-(5, 6, 'Ananya', '9123456780', 'Reddy');
+(5, 6, 'Ananya', '9123456780', 'Reddy'),
+(6, 6, 'Ananya', '9123456780', 'Friend'),
+(7, 7, 'Akshat', '9129129121', 'Spouse');
 
 -- --------------------------------------------------------
 
@@ -300,7 +309,8 @@ INSERT INTO `medication_record` (`med_record_id`, `pregnancy_id`, `medication_id
 (3, 2, 2, '1 tablet/day', '2024-09-11', '2025-01-01'),
 (4, 3, 4, '200mg at night', '2025-03-01', '2025-06-01'),
 (5, 1, 4, '1 tablet/ 2 times day', '2026-04-05', '2026-04-07'),
-(6, 5, 3, '1 tablet/ 2 times day', '2026-05-11', '2026-05-13');
+(6, 5, 3, '1 tablet/ 2 times day', '2026-05-11', '2026-05-13'),
+(7, 6, 1, '1 tablet/ 2 times day', '2026-05-12', '2026-05-14');
 
 -- --------------------------------------------------------
 
@@ -322,11 +332,12 @@ CREATE TABLE `pregnancy_profile` (
 --
 
 INSERT INTO `pregnancy_profile` (`pregnancy_id`, `user_id`, `start_date`, `due_date`, `pregnancy_status`, `created_at`) VALUES
-(1, 1, '2025-01-10', '2025-10-17', 'active', '2026-04-04 22:23:26'),
-(2, 2, '2024-06-01', '2025-03-08', 'completed', '2026-04-04 22:23:26'),
+(1, 1, '2025-01-10', '2025-10-17', 'completed', '2026-04-04 22:23:26'),
+(2, 2, '2024-06-01', '2025-03-08', 'active', '2026-04-04 22:23:26'),
 (3, 3, '2025-03-01', '2025-12-06', 'active', '2026-04-04 22:23:26'),
-(4, 2, '2026-02-02', '2026-11-19', 'active', '2026-05-12 08:07:14'),
-(5, 6, '2026-01-01', '0002-10-08', 'active', '2026-05-12 09:23:57');
+(6, 6, '2026-01-01', '2026-10-19', 'active', '2026-05-12 14:58:26'),
+(7, 7, '2025-12-11', '2026-09-17', 'active', '2026-05-12 23:15:19'),
+(8, 8, '2025-02-03', '2025-11-10', 'completed', '2026-05-12 23:19:45');
 
 -- --------------------------------------------------------
 
@@ -354,7 +365,8 @@ CREATE TABLE `reminder` (
 INSERT INTO `reminder` (`reminder_id`, `user_id`, `pregnancy_id`, `baby_id`, `title`, `type`, `reminder_date`, `reminder_time`, `status`, `sms_sent`) VALUES
 (1, 1, NULL, NULL, 'Vaccination', 'appointment', '2026-05-13', '10:00:00', 'done', 0),
 (2, 6, NULL, NULL, 'Take medicine', 'medication', '2026-05-12', '10:20:00', 'done', 1),
-(3, 6, 4, NULL, 'Test SMS Reminder', 'general', '2026-05-12', '10:05:18', 'done', 1);
+(3, 6, 4, NULL, 'Test SMS Reminder', 'general', '2026-05-12', '10:05:18', 'done', 1),
+(4, 6, NULL, NULL, 'hydrate', 'water', '2026-05-12', '15:24:00', 'pending', 0);
 
 -- --------------------------------------------------------
 
@@ -376,8 +388,7 @@ CREATE TABLE `symptom_log` (
 --
 
 INSERT INTO `symptom_log` (`symptom_id`, `pregnancy_id`, `symptom_name`, `severity`, `notes`, `logged_at`) VALUES
-(1, 5, 'Nausea', 'Mild', NULL, '2026-05-12 04:08:00'),
-(2, 5, 'Nausea', 'Moderate', NULL, '2026-05-12 04:20:00');
+(3, 6, 'Fatigue', 'Mild', NULL, '2026-05-12 09:36:00');
 
 -- --------------------------------------------------------
 
@@ -404,7 +415,8 @@ INSERT INTO `test_record` (`test_record_id`, `pregnancy_id`, `test_id`, `test_da
 (4, 3, 1, '2025-03-25', 'Normal — 92 mg/dL'),
 (5, 1, 1, '2026-04-04', 'Normal'),
 (6, 1, 2, '2026-04-03', NULL),
-(7, 5, 1, '2026-05-12', 'Normal');
+(7, 5, 1, '2026-05-12', 'Normal'),
+(8, 6, 3, '2026-05-01', '11.5');
 
 -- --------------------------------------------------------
 
@@ -438,7 +450,9 @@ INSERT INTO `user` (`user_id`, `first_name`, `last_name`, `email`, `password_has
 (3, 'Kavitha', 'Menon', 'kavitha.menon@email.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '9988776655', NULL, NULL, 1, 1, 'active', 'patient', '2026-04-04 22:23:26'),
 (4, 'Ravi', 'Kumar', 'ravi.kumar@hospital.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '9000011111', NULL, NULL, 1, 1, 'active', 'doctor', '2026-04-04 22:23:26'),
 (5, 'Admin', 'User', 'admin@matercare.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '9000099999', NULL, NULL, 1, 1, 'active', 'admin', '2026-04-04 22:23:26'),
-(6, 'Arya', 'Mishra', 'aryamishra@email.com', '$2b$10$/JMP1DfyveSHe0tM.bgLPOicKPzGRd0Lkr1lZEVTTxxjJFGshPMk.', NULL, NULL, 'B+', 1, 0, 'active', 'patient', '2026-05-12 08:58:39');
+(6, 'Arya', 'Mishra', 'aryamishra@email.com', '$2b$10$/JMP1DfyveSHe0tM.bgLPOicKPzGRd0Lkr1lZEVTTxxjJFGshPMk.', NULL, NULL, 'B+', 1, 0, 'active', 'patient', '2026-05-12 08:58:39'),
+(7, 'Bhavya', 'Mishra', 'bhavyamishra@email.com', '$2b$10$CV7gWeM/GSCKEhEHnhrwwODfuXIhMRLewRz0tIBKltghoZe1l3Qk.', '1231231231', NULL, 'O+', 1, 0, 'active', 'patient', '2026-05-12 23:14:11'),
+(8, 'Shreya', 'Sharma', 'shreyasharma@email.com', '$2b$10$MdcAwX3UY84nczmzdwuza.OXfGhN0T6eLbworArFlmP8vtVDoYzV2', '987654321', NULL, 'AB+', 1, 0, 'active', 'patient', '2026-05-12 23:19:14');
 
 -- --------------------------------------------------------
 
@@ -484,9 +498,11 @@ CREATE TABLE `vaccination_record` (
 INSERT INTO `vaccination_record` (`vacc_record_id`, `baby_id`, `vaccine_id`, `vaccination_date`, `status`) VALUES
 (1, 1, 1, '2025-03-05', 'given'),
 (2, 1, 2, '2025-03-05', 'given'),
-(3, 1, 3, '2025-04-16', 'scheduled'),
-(4, 1, 4, '2025-04-16', 'scheduled'),
-(5, 2, 1, '2026-04-05', 'scheduled');
+(3, 1, 3, '2025-04-16', ''),
+(4, 1, 4, '2025-04-16', ''),
+(5, 2, 1, '2026-04-05', 'scheduled'),
+(6, 4, 1, '2026-05-12', 'scheduled'),
+(7, 6, 5, '2026-05-13', 'scheduled');
 
 --
 -- Indexes for dumped tables
@@ -620,7 +636,7 @@ ALTER TABLE `vaccination_record`
 -- AUTO_INCREMENT for table `appointment`
 --
 ALTER TABLE `appointment`
-  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `audit_log`
@@ -632,7 +648,7 @@ ALTER TABLE `audit_log`
 -- AUTO_INCREMENT for table `baby`
 --
 ALTER TABLE `baby`
-  MODIFY `baby_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `baby_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `doctor`
@@ -656,7 +672,7 @@ ALTER TABLE `document`
 -- AUTO_INCREMENT for table `emergency_contact`
 --
 ALTER TABLE `emergency_contact`
-  MODIFY `contact_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `contact_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `hospital`
@@ -680,37 +696,37 @@ ALTER TABLE `medication`
 -- AUTO_INCREMENT for table `medication_record`
 --
 ALTER TABLE `medication_record`
-  MODIFY `med_record_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `med_record_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `pregnancy_profile`
 --
 ALTER TABLE `pregnancy_profile`
-  MODIFY `pregnancy_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `pregnancy_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `reminder`
 --
 ALTER TABLE `reminder`
-  MODIFY `reminder_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `reminder_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `symptom_log`
 --
 ALTER TABLE `symptom_log`
-  MODIFY `symptom_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `symptom_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `test_record`
 --
 ALTER TABLE `test_record`
-  MODIFY `test_record_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `test_record_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `user`
 --
 ALTER TABLE `user`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `vaccination`
@@ -722,7 +738,7 @@ ALTER TABLE `vaccination`
 -- AUTO_INCREMENT for table `vaccination_record`
 --
 ALTER TABLE `vaccination_record`
-  MODIFY `vacc_record_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `vacc_record_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- Constraints for dumped tables

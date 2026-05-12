@@ -100,7 +100,7 @@ exports.updateAppointment = (req, res) => {
 
   // Verify the appointment belongs to this user before updating
   const checkSql = `
-    SELECT a.appointment_id, a.availability_id AS old_availability_id
+    SELECT a.*
     FROM appointment a
     JOIN pregnancy_profile pp ON a.pregnancy_id = pp.pregnancy_id
     WHERE a.appointment_id = ? AND pp.user_id = ?
@@ -112,50 +112,40 @@ exports.updateAppointment = (req, res) => {
     if (rows.length === 0)
       return res.status(404).json({ message: "Appointment not found." });
 
-    const oldAvailabilityId = rows[0].old_availability_id;
+    const current = rows[0];
+    const oldAvailabilityId = current.availability_id;
 
-    const updateSql = `
-      UPDATE appointment
-      SET doctor_id        = ?,
-          availability_id  = ?,
-          appointment_date = ?,
-          status           = ?
-      WHERE appointment_id = ?
-    `;
+    // Build dynamic update query
+    const updates = [];
+    const params = [];
 
-    db.query(
-      updateSql,
-      [
-        doctor_id,
-        availability_id || null,
-        appointment_date,
-        status || "scheduled",
-        appointment_id,
-      ],
-      (err2, result) => {
-        if (err2)
-          return res.status(500).json({ message: "Database error.", error: err2 });
-        if (result.affectedRows === 0)
-          return res.status(404).json({ message: "Appointment not found." });
+    if (doctor_id !== undefined) { updates.push("doctor_id = ?"); params.push(doctor_id); }
+    if (availability_id !== undefined) { updates.push("availability_id = ?"); params.push(availability_id); }
+    if (appointment_date !== undefined) { updates.push("appointment_date = ?"); params.push(appointment_date); }
+    if (status !== undefined) { updates.push("status = ?"); params.push(status); }
 
-        // Free old slot if slot changed
-        if (oldAvailabilityId && oldAvailabilityId !== availability_id) {
-          db.query(
-            `UPDATE doctor_availability SET status = 'available' WHERE availability_id = ?`,
-            [oldAvailabilityId]
-          );
+    if (updates.length === 0) {
+      return res.status(400).json({ message: "No fields to update." });
+    }
+
+    const updateSql = `UPDATE appointment SET ${updates.join(", ")} WHERE appointment_id = ?`;
+    params.push(appointment_id);
+
+    db.query(updateSql, params, (err2, result) => {
+      if (err2) return res.status(500).json({ message: "Database error.", error: err2 });
+
+      // Handle availability status changes
+      if (availability_id !== undefined && oldAvailabilityId !== availability_id) {
+        if (oldAvailabilityId) {
+          db.query("UPDATE doctor_availability SET status = 'available' WHERE availability_id = ?", [oldAvailabilityId]);
         }
-        // Mark new slot as booked
         if (availability_id) {
-          db.query(
-            `UPDATE doctor_availability SET status = 'booked' WHERE availability_id = ?`,
-            [availability_id]
-          );
+          db.query("UPDATE doctor_availability SET status = 'booked' WHERE availability_id = ?", [availability_id]);
         }
-
-        res.json({ message: "Appointment updated." });
       }
-    );
+
+      res.json({ message: "Appointment updated." });
+    });
   });
 };
 

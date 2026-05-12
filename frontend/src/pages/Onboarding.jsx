@@ -17,15 +17,45 @@ export default function Onboarding() {
 
   const calculateDueDate = (start) => {
     if (!start) return "";
-    const date = new Date(start);
-    date.setDate(date.getDate() + 280); // Naegele's rule: add 280 days (40 weeks) to LMP
-    return date.toISOString().split('T')[0];
+    // Parse the YYYY-MM-DD string into a local Date object
+    const [year, month, day] = start.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    // Add 280 days (40 weeks) for estimated due date
+    date.setDate(date.getDate() + 280);
+    
+    // Format back to YYYY-MM-DD in local time
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   };
+
+  const getTodayStr = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const todayStr = getTodayStr();
+
+  const [isDueDateManual, setIsDueDateManual] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === "start_date" && !form.due_date) {
-      setForm(prev => ({ ...prev, start_date: value, due_date: calculateDueDate(value) }));
+    if (name === "start_date") {
+      setForm(prev => {
+        const next = { ...prev, start_date: value };
+        if (!isDueDateManual) {
+          next.due_date = calculateDueDate(value);
+        }
+        return next;
+      });
+    } else if (name === "due_date") {
+      setIsDueDateManual(!!value);
+      setForm(prev => ({ ...prev, [name]: value }));
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
     }
@@ -96,10 +126,10 @@ export default function Onboarding() {
                   <div style={{ display: "flex", gap: 12 }}>
                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                         <label style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground, #111827)" }}>Last Menstrual Period (LMP) *</label>
-                        <input type="date" name="start_date" value={form.start_date} onChange={handleChange} required max={new Date().toISOString().split('T')[0]} style={inputStyle} />
+                        <input type="date" name="start_date" value={form.start_date} onChange={handleChange} required max={todayStr} style={inputStyle} />
                      </div>
                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground, #111827)" }}>Est. Due Date (Optional)</label>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground, #111827)" }}>Expected Date of Birth (EDD)</label>
                         <input type="date" name="due_date" value={form.due_date} onChange={handleChange} style={inputStyle} />
                      </div>
                   </div>

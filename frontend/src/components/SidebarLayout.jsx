@@ -82,30 +82,67 @@ export const Menu = ({ size = 20, color = "currentColor" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
      <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
   </svg>
-)
+);
 export const X = ({ size = 20, color = "currentColor" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
+export const HeartPulse = ({ size = 18, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </svg>
+);
+export const Stethoscope = ({ size = 18, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4.8 2.3A.3.3 0 105 2H4a2 2 0 00-2 2v5a6 6 0 006 6v0a6 6 0 006-6V4a2 2 0 00-2-2h-1a.2.2 0 10.3.3" />
+    <path d="M8 15v1a6 6 0 006 6v0a6 6 0 006-6v-4" />
+    <circle cx="20" cy="10" r="2" />
+  </svg>
+);
+
+// ── Phase detection helpers ──────────────────────────────────────────────────
+// "pregnancy" = no baby record exists yet
+// "postnatal" = at least one baby record exists
+export const PHASES = {
+  PREGNANCY: "pregnancy",
+  POSTNATAL: "postnatal",
+  LIMBO: "completion_limbo",
+};
 
 export default function SidebarLayout() {
   const [darkMode, setDarkMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [pregnancyInfo, setPregnancyInfo] = useState(null);
+  const [latestPregnancy, setLatestPregnancy] = useState(null);
   const [profile, setProfile] = useState({});
+  const [babies, setBabies] = useState(null); // null = loading, [] = no babies, [...] = has babies
+  const [phase, setPhase] = useState(null);   // null while loading
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // Load profile and pregnancy info to show side profile
-    api.get("/pregnancy/week").then(r => setPregnancyInfo(r.data)).catch(() => {});
+    // Load profile
     api.get("/user/profile").then(r => {
-      if(r.data?.data) {
-        setProfile(r.data.data);
-      }
+      if (r.data?.data) setProfile(r.data.data);
     }).catch(() => {});
+
+    // Load pregnancy info
+    api.get("/pregnancy/week").then(r => setPregnancyInfo(r.data)).catch(() => {});
+
+    // Phase detection: check for baby records and pregnancy status
+    Promise.all([api.get("/babies"), api.get("/dashboard")]).then(([br, dr]) => {
+      const babyList = br.data || [];
+      const dash = dr.data || {};
+      setBabies(babyList);
+      setLatestPregnancy(dash.latestPregnancy || null);
+      setPhase(dash.phase || (babyList.length > 0 ? PHASES.POSTNATAL : PHASES.PREGNANCY));
+    }).catch(() => {
+      setBabies([]);
+      setPhase(PHASES.PREGNANCY);
+    });
   }, []);
 
   const handleLogout = () => {
@@ -114,26 +151,58 @@ export default function SidebarLayout() {
     navigate("/");
   };
 
-  const navItems = [
-    { label: "Dashboard", Icon: LayoutGrid, path: "/dashboard" },
-    { label: "Appointments", Icon: CalendarDays, path: "/appointments" },
-    { label: "Symptoms", Icon: ClipboardList, path: "/symptoms" },
-    { label: "Tests", Icon: TestTubes, path: "/tests" },
-    { label: "Medication", Icon: Pill, path: "/medication" },
-    { label: "Vaccination", Icon: Syringe, path: "/vaccination" },
-    { label: "Documents", Icon: DocIcon, path: "/documents" },
-    { label: "Reminders", Icon: Bell, path: "/reminders" },
-    { label: "Profile", Icon: UserIcon, path: "/profile" },
-    { label: "Settings", Icon: SettingsIcon, path: "/settings" },
+  // ── Phase-aware navigation ─────────────────────────────────────────────────
+  const pregnancyNavItems = [
+    { label: "Dashboard",    Icon: LayoutGrid,    path: "/dashboard" },
+    { label: "Appointments", Icon: CalendarDays,  path: "/appointments" },
+    { label: "Symptoms",     Icon: ClipboardList, path: "/symptoms" },
+    { label: "Tests",        Icon: TestTubes,     path: "/tests" },
+    { label: "Medication",   Icon: Pill,          path: "/medication" },
+    { label: "Documents",    Icon: DocIcon,       path: "/documents" },
+    { label: "Reminders",    Icon: Bell,          path: "/reminders" },
+    { label: "Profile",      Icon: UserIcon,      path: "/profile" },
+    { label: "Settings",     Icon: SettingsIcon,  path: "/settings" },
   ];
+
+  const postnatalNavItems = [
+    { label: "Dashboard",    Icon: LayoutGrid,    path: "/dashboard" },
+    { label: "Baby Profile", Icon: Baby,          path: "/baby" },
+    { label: "Vaccination",  Icon: Syringe,       path: "/vaccination" },
+    { label: "Appointments", Icon: CalendarDays,  path: "/appointments" },
+    { label: "Medication",   Icon: Pill,          path: "/medication" },
+    { label: "Documents",    Icon: DocIcon,       path: "/documents" },
+    { label: "Reminders",    Icon: Bell,          path: "/reminders" },
+    { label: "Profile",      Icon: UserIcon,      path: "/profile" },
+    { label: "Settings",     Icon: SettingsIcon,  path: "/settings" },
+  ];
+
+  const navItems = phase === PHASES.POSTNATAL ? postnatalNavItems : pregnancyNavItems;
 
   const week = pregnancyInfo?.week || 0;
   const userName = profile?.first_name ? `${profile.first_name} ${profile.last_name}` : "User";
   const initials = userName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "MC";
-  
+
+  // Detect near/past due date to show "Add Baby" CTA
+  const isTermComplete = (() => {
+    if (!pregnancyInfo?.due_date || phase !== PHASES.PREGNANCY) return false;
+    // Do not prompt if a baby record already exists for this specific pregnancy
+    if (latestPregnancy?.baby_id) return false;
+
+    const due = new Date(pregnancyInfo.due_date);
+    const today = new Date();
+    return today >= due;
+  })();
+
   const vars = darkMode
     ? `--bg:#0f0f0f;--card:#1a1a1a;--border:#333333;--foreground:#ffffff;--card-foreground:#ffffff;--muted-foreground:#9ca3af;--muted:#2a2a2a;--primary:#f472b6;--sidebar:#111111;--nav-active-bg:rgba(244,114,182,0.15);--nav-hover:rgba(255,255,255,0.06);--progress-track:#2a2a2a;--row-bg:#222222;--input-bg:#2a2a2a;--input-border:#444444;--primary-light:rgba(244,114,182,0.15);--success-bg:rgba(34,197,94,0.15);--success-text:#4ade80;--warning-bg:rgba(234,179,8,0.15);--warning-text:#fbbf24;--danger-bg:rgba(239,68,68,0.15);--danger-text:#f87171;--purple-bg:rgba(167,139,250,0.15);--purple-text:#a78bfa;`
     : `--bg:#f8f9fb;--card:#ffffff;--border:#eef0f4;--foreground:#111827;--card-foreground:#111827;--muted-foreground:#6b7280;--muted:#f3f4f6;--primary:#e879a0;--sidebar:#ffffff;--nav-active-bg:rgba(232,121,160,0.08);--nav-hover:rgba(0,0,0,0.03);--progress-track:#f3f4f6;--row-bg:#f9fafb;--input-bg:#f3f4f6;--input-border:#eef0f4;--primary-light:rgba(232,121,160,0.10);--success-bg:rgba(34,197,94,0.10);--success-text:#16a34a;--warning-bg:rgba(234,179,8,0.12);--warning-text:#b45309;--danger-bg:rgba(239,68,68,0.08);--danger-text:#dc2626;--purple-bg:rgba(109,40,217,0.09);--purple-text:#6d28d9;`;
+
+  // Phase badge configuration
+  const phaseBadge = phase === PHASES.POSTNATAL
+    ? { label: "Baby Care Phase", emoji: "👶", bg: "rgba(34,197,94,0.12)", color: "#16a34a", borderColor: "rgba(34,197,94,0.25)" }
+    : phase === PHASES.LIMBO
+      ? { label: "Completion Limbo", emoji: "✨", bg: "rgba(109,40,217,0.10)", color: "#6d28d9", borderColor: "rgba(109,40,217,0.25)" }
+      : { label: "Pregnancy Phase", emoji: "🤰", bg: "rgba(232,121,160,0.10)", color: "#e879a0", borderColor: "rgba(232,121,160,0.25)" };
 
   return (
     <div className="layout-container" style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--bg)", color: "var(--foreground)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -146,7 +215,10 @@ export default function SidebarLayout() {
         .nav-link { border-radius: 8px; cursor: pointer; transition: background 0.15s; display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:2px; font-size:13.5px; text-decoration: none; }
         .nav-link:hover { background: var(--nav-hover) !important; }
         .nav-link.active { background: var(--nav-active-bg) !important; font-weight:600; color: var(--primary) !important; }
+        .phase-divider { font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted-foreground); padding: 12px 12px 4px; opacity: 0.6; }
         .mobile-header { display: none; }
+        .phase-transition-banner { animation: slideDown 0.4s ease; }
+        @keyframes slideDown { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
         @media(max-width: 768px) {
           .layout-sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; transform: translateX(${menuOpen ? "0%" : "-100%"}); transition: transform 0.3s; width: 260px !important; }
           .mobile-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--card); border-bottom: 1px solid var(--border); }
@@ -155,7 +227,6 @@ export default function SidebarLayout() {
         }
       `}</style>
 
-      {/* Overlay for mobile modal */}
       {menuOpen && (
         <div onClick={() => setMenuOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:99, display: window.innerWidth > 768 ? "none" : "block" }} />
       )}
@@ -163,24 +234,74 @@ export default function SidebarLayout() {
       {/* ── SIDEBAR ──────────────────────────────────────────────────── */}
       <aside className="layout-sidebar" style={{ width: 220, flexShrink: 0, background: "var(--sidebar)", borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", padding: "20px 12px", overflowY: "auto" }}>
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 6px 22px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 6px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ background: "linear-gradient(135deg,#f9a8c9,#e879a0)", borderRadius: 10, padding: 7, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></svg>
             </div>
             <span style={{ fontWeight: 700, fontSize: 17, letterSpacing: "-0.3px", color: "var(--foreground)" }}>MaterCare</span>
           </div>
-          <button className="mobile-only" onClick={() => setMenuOpen(false)} style={{ background:"none", border:"none", color:"var(--muted-foreground)", display: window.innerWidth <= 768 ? "block" : "none" }}>
+          <button onClick={() => setMenuOpen(false)} style={{ background:"none", border:"none", color:"var(--muted-foreground)", display: window.innerWidth <= 768 ? "block" : "none" }}>
              <X size={20} />
           </button>
         </div>
 
+        {/* ── Phase Badge ── */}
+        {phase && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            background: phaseBadge.bg,
+            border: `1px solid ${phaseBadge.borderColor}`,
+            borderRadius: 8, padding: "7px 10px", marginBottom: 16,
+            animation: "slideDown 0.4s ease"
+          }}>
+            <span style={{ fontSize: 14 }}>{phaseBadge.emoji}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: phaseBadge.color, letterSpacing: "0.2px" }}>{phaseBadge.label}</span>
+          </div>
+        )}
+
         {/* Nav */}
         <nav style={{ flex: 1 }}>
-          {navItems.map(({ label, Icon, path }) => {
+          {/* Core nav items */}
+          {navItems.slice(0, 1).map(({ label, Icon, path }) => {
+            const active = location.pathname === path || location.pathname.startsWith(path + "/");
+            return (
+              <div key={label} className={`nav-link${active ? " active" : ""}`}
+                onClick={() => { navigate(path); setMenuOpen(false); }}
+                style={{ color: active ? "var(--primary)" : "var(--muted-foreground)", fontWeight: active ? 600 : 400 }}>
+                <Icon size={17} color={active ? "var(--primary)" : "var(--muted-foreground)"} />
+                {label}
+              </div>
+            );
+          })}
+
+          {/* Phase-specific section label */}
+          {phase && (
+            <div className="phase-divider">
+              {phase === PHASES.POSTNATAL ? "Baby Care" : "Prenatal Care"}
+            </div>
+          )}
+
+          {navItems.slice(1, phase === PHASES.POSTNATAL ? 5 : 6).map(({ label, Icon, path }) => {
             const active = location.pathname.startsWith(path);
             return (
-              <div key={label} className={`nav-link${active ? " active" : ""}`} onClick={() => { navigate(path); setMenuOpen(false); }}
+              <div key={label} className={`nav-link${active ? " active" : ""}`}
+                onClick={() => { navigate(path); setMenuOpen(false); }}
+                style={{ color: active ? "var(--primary)" : "var(--muted-foreground)", fontWeight: active ? 600 : 400 }}>
+                <Icon size={17} color={active ? "var(--primary)" : "var(--muted-foreground)"} />
+                {label}
+              </div>
+            );
+          })}
+
+          {/* Shared section */}
+          <div className="phase-divider">General</div>
+
+          {navItems.slice(phase === PHASES.POSTNATAL ? 5 : 6).map(({ label, Icon, path }) => {
+            const active = location.pathname.startsWith(path);
+            return (
+              <div key={label} className={`nav-link${active ? " active" : ""}`}
+                onClick={() => { navigate(path); setMenuOpen(false); }}
                 style={{ color: active ? "var(--primary)" : "var(--muted-foreground)", fontWeight: active ? 600 : 400 }}>
                 <Icon size={17} color={active ? "var(--primary)" : "var(--muted-foreground)"} />
                 {label}
@@ -205,12 +326,18 @@ export default function SidebarLayout() {
                 {initials}
                 </div>
             )}
-            
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--card-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{userName}</p>
-              {week > 0 && <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 500 }}>Week {week}</span>}
+              {phase === PHASES.PREGNANCY && week > 0 && (
+                <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 500 }}>Week {week}</span>
+              )}
+              {phase === PHASES.POSTNATAL && (
+                <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 500 }}>
+                  {babies?.length === 1 ? babies[0].name : `${babies?.length} babies`}
+                </span>
+              )}
             </div>
-            <button className="logout-btn" onClick={handleLogout} title="Logout" style={{ background:"none", border:"none", cursor:"pointer" }}>
+            <button onClick={handleLogout} title="Logout" style={{ background:"none", border:"none", cursor:"pointer" }}>
               <LogOutIcon size={15} color="var(--muted-foreground)" />
             </button>
           </div>
@@ -228,7 +355,6 @@ export default function SidebarLayout() {
               </button>
               <span style={{ fontWeight: 700, fontSize: 16 }}>MaterCare</span>
            </div>
-           
            <button onClick={() => setNotificationsOpen(!notificationsOpen)} style={{ background:"none", border:"none", color:"var(--primary)", position:"relative" }}>
                <Bell />
                <div style={{ position:"absolute", top:-2, right:-2, width:8, height:8, background:"#ef4444", borderRadius:"50%" }} />
@@ -236,7 +362,34 @@ export default function SidebarLayout() {
         </div>
 
         <main className="layout-main-content" style={{ flex: 1, overflowY: "auto", padding: "28px 30px" }}>
-           <Outlet context={{ pregnancyInfo, profile, setProfile }} />
+          {/* ── Term-complete banner: prompt to add baby ── */}
+          {(isTermComplete || phase === PHASES.LIMBO) && (
+            <div className="phase-transition-banner" style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+              background: "linear-gradient(135deg, rgba(34,197,94,0.10), rgba(34,197,94,0.04))",
+              border: "1.5px solid rgba(34,197,94,0.3)",
+              borderRadius: 14, padding: "16px 20px", marginBottom: 20
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ fontSize: 26 }}>🎉</div>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: "#15803d" }}>
+                    {phase === PHASES.LIMBO ? "Pregnancy completed!" : "Your due date has passed — congratulations!"}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 13, color: "#16a34a" }}>
+                    Add your baby's details to unlock Baby Care features.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate("/baby/add")}
+                style={{ background: "#16a34a", color: "#fff", border: "none", borderRadius: 9, padding: "10px 20px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                Add Baby Details →
+              </button>
+            </div>
+          )}
+
+          <Outlet context={{ pregnancyInfo, latestPregnancy, profile, setProfile, phase, babies, setBabies, setPhase }} />
         </main>
       </div>
 

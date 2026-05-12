@@ -9,9 +9,9 @@ export default function Profile() {
     first_name: profile.first_name || "",
     last_name: profile.last_name || "",
     blood_group: profile.blood_group || "",
-    emergency_contact_name: profile.emergency_contact_name || "",
-    emergency_contact_phone: profile.emergency_contact_phone || "",
-    emergency_contact_relation: profile.emergency_contact_relation || "",
+    emergency_name: profile.emergency_contact?.name || "",
+    emergency_phone: profile.emergency_contact?.phone_number || "",
+    emergency_relation: profile.emergency_contact?.relation || "",
   });
   
   const [loading, setLoading] = useState(false);
@@ -45,8 +45,23 @@ export default function Profile() {
     setMessage({ type: "", text: "" });
 
     try {
-      await api.put("/user/profile", form);
-      setProfile(prev => ({ ...prev, ...form }));
+      const payload = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        blood_group: form.blood_group,
+        emergency_contact: {
+          contact_id: profile.emergency_contact?.contact_id,
+          name: form.emergency_name,
+          phone_number: form.emergency_phone,
+          relation: form.emergency_relation,
+        }
+      };
+      await api.put("/user/profile", payload);
+      setProfile(prev => ({ 
+        ...prev, 
+        ...form,
+        emergency_contact: payload.emergency_contact
+      }));
       setMessage({ type: "success", text: "Profile updated successfully!" });
     } catch (err) {
       setMessage({ type: "error", text: "Failed to update profile." });
@@ -128,18 +143,18 @@ export default function Profile() {
              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Contact Name</label>
-                   <input type="text" name="emergency_contact_name" value={form.emergency_contact_name} onChange={handleChange} style={inputStyle} />
+                   <input type="text" name="emergency_name" value={form.emergency_name} onChange={handleChange} style={inputStyle} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Relation</label>
-                   <input type="text" name="emergency_contact_relation" value={form.emergency_contact_relation} onChange={handleChange} style={inputStyle} />
+                   <input type="text" name="emergency_relation" value={form.emergency_relation} onChange={handleChange} style={inputStyle} />
                 </div>
              </div>
              
              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Phone Number</label>
-                   <input type="tel" name="emergency_contact_phone" value={form.emergency_contact_phone} onChange={handleChange} style={inputStyle} />
+                   <input type="tel" name="emergency_phone" value={form.emergency_phone} onChange={handleChange} style={inputStyle} />
                 </div>
              </div>
 

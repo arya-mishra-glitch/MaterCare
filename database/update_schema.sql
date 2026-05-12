@@ -37,3 +37,10 @@ CREATE TABLE IF NOT EXISTS `symptom_log` (
     REFERENCES `pregnancy_profile` (`pregnancy_id`)
     ON DELETE CASCADE
 );
+
+ALTER TABLE baby
+ADD COLUMN birth_weight DECIMAL(4,2) NULL,
+ADD COLUMN current_weight DECIMAL(4,2) NULL,
+ADD COLUMN blood_group VARCHAR(10) NULL,
+ADD COLUMN health_status VARCHAR(50) DEFAULT 'Healthy',
+ADD COLUMN delivery_type ENUM('normal', 'c-section') NULL;

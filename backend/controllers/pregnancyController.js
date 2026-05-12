@@ -92,6 +92,16 @@ exports.onboardPregnancy = async (req, res) => {
   const pool = db.promise();
 
   try {
+    // Check if user already has an active pregnancy
+    const [activeRows] = await pool.query(
+      `SELECT pregnancy_id FROM pregnancy_profile WHERE user_id = ? AND pregnancy_status = 'active'`,
+      [user_id]
+    );
+
+    if (activeRows.length > 0) {
+      return res.status(400).json({ success: false, message: "You already have an active pregnancy profile." });
+    }
+
     // 1. Create pregnancy profile
     const [pregResult] = await pool.query(
       `INSERT INTO pregnancy_profile (user_id, start_date, due_date, pregnancy_status) VALUES (?, ?, ?, 'active')`,
@@ -125,5 +135,78 @@ exports.onboardPregnancy = async (req, res) => {
   } catch (err) {
     console.error("Onboard error:", err);
     res.status(500).json({ success: false, message: "Server error during onboarding.", error: err.message });
+  }
+};
+
+// POST /api/pregnancy/complete
+// Marks the current active pregnancy as completed
+exports.completePregnancy = (req, res) => {
+  const user_id = req.user.user_id;
+
+  const sql = `
+    UPDATE pregnancy_profile
+    SET pregnancy_status = 'completed'
+    WHERE user_id = ? AND pregnancy_status = 'active'
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  db.query(sql, [user_id], (err, result) => {
+    if (err) return res.status(500).json({ message: "Database error.", error: err });
+    if (result.affectedRows === 0) return res.status(404).json({ message: "No active pregnancy found to complete." });
+    res.json({ message: "Pregnancy marked as completed." });
+  });
+};
+
+// GET /api/pregnancy/status
+// Determines the user's current stage (onboarding, pregnancy, postnatal, or completion_limbo)
+exports.getPregnancyStatus = async (req, res) => {
+  const user_id = req.user.user_id;
+  const pool = db.promise();
+
+  try {
+    // 1. Get all pregnancy profiles to check history and current status
+    const [pregnancyRows] = await pool.query(
+      `SELECT pregnancy_id, pregnancy_status 
+       FROM pregnancy_profile 
+       WHERE user_id = ? 
+       ORDER BY created_at DESC`,
+      [user_id]
+    );
+
+    // 2. Check for baby records
+    const [babyRows] = await pool.query(
+      `SELECT baby_id FROM baby WHERE user_id = ? LIMIT 1`,
+      [user_id]
+    );
+
+    const hasPregnancy = pregnancyRows.length > 0;
+    const hasActivePregnancy = pregnancyRows.some(p => p.pregnancy_status === 'active');
+    const hasBaby = babyRows.length > 0;
+
+    let phase = "onboarding"; // Default for new users
+
+    if (hasActivePregnancy) {
+      phase = "pregnancy";
+    } else if (hasPregnancy) {
+      // User has history but no active pregnancy
+      if (hasBaby) {
+        phase = "postnatal";
+      } else {
+        // This is the "limbo" state: pregnancy finished but no baby record yet
+        phase = "completion_limbo";
+      }
+    }
+
+    res.json({
+      phase,
+      hasPregnancy,
+      hasActivePregnancy,
+      hasBaby,
+      latestPregnancy: pregnancyRows[0] || null
+    });
+  } catch (err) {
+    console.error("❌ Status Error:", err);
+    res.status(500).json({ message: "Server error.", error: err.message });
   }
 };

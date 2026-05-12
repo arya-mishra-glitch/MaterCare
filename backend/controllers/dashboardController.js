@@ -74,6 +74,53 @@ exports.getDashboard = async (req, res) => {
       };
     }
 
+    // Latest pregnancy (active or completed)
+    const [latestPregRows] = await pool.query(
+      `SELECT pp.pregnancy_id, pp.start_date, pp.due_date, pp.pregnancy_status, b.baby_id
+       FROM pregnancy_profile pp
+       LEFT JOIN baby b ON pp.pregnancy_id = b.pregnancy_id
+       WHERE pp.user_id = ?
+       ORDER BY pp.created_at DESC
+       LIMIT 1`,
+      [user_id]
+    );
+    const latestPregnancy = latestPregRows[0] || null;
+
+    // ─────────────────────────────────────────────
+    // 2.5 BABY INFORMATION (if no active pregnancy or just to show baby details)
+    // ─────────────────────────────────────────────
+    const [babyRows] = await pool.query(
+      `SELECT baby_id, name, date_of_birth, gender
+       FROM baby
+       WHERE user_id = ?
+       ORDER BY date_of_birth DESC`,
+      [user_id]
+    );
+
+    const hasBaby = babyRows.length > 0;
+    let phase = "onboarding";
+
+    if (latestPregnancy) {
+      // PRIORITY 1: If the latest pregnancy already has a baby record, it's POSTNATAL
+      if (latestPregnancy.baby_id) {
+        phase = "postnatal";
+      }
+      // PRIORITY 2: If the pregnancy is marked completed but has no baby yet, it's LIMBO
+      else if (latestPregnancy.pregnancy_status === 'completed') {
+        phase = "completion_limbo";
+      }
+      // PRIORITY 3: Active pregnancy
+      else if (latestPregnancy.pregnancy_status === 'active') {
+        phase = "pregnancy";
+      }
+      // Fallback: If they have babies at all, they should likely be in postnatal
+      else if (hasBaby) {
+        phase = "postnatal";
+      }
+    } else if (hasBaby) {
+      phase = "postnatal";
+    }
+
     // ─────────────────────────────────────────────
     // 3. SUMMARY METRICS
     // ─────────────────────────────────────────────
@@ -117,6 +164,41 @@ exports.getDashboard = async (req, res) => {
       [user_id]
     );
 
+    // 3e. Stale appointments (scheduled but in the past)
+    const [staleAppointments] = await pool.query(
+      `SELECT
+         a.appointment_id,
+         a.appointment_date,
+         CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
+         h.hospital_name
+       FROM appointment a
+       JOIN pregnancy_profile pp ON a.pregnancy_id = pp.pregnancy_id
+       JOIN doctor            d  ON a.doctor_id    = d.doctor_id
+       JOIN hospital          h  ON d.hospital_id  = h.hospital_id
+       WHERE pp.user_id = ?
+         AND a.status = 'scheduled'
+         AND a.appointment_date < CURDATE()
+       ORDER BY a.appointment_date DESC`,
+      [user_id]
+    );
+
+    // 3f. Stale vaccinations (scheduled but in the past)
+    const [staleVaccinations] = await pool.query(
+      `SELECT
+         vr.vacc_record_id,
+         vr.vaccination_date,
+         v.vaccine_name,
+         b.name AS baby_name
+       FROM vaccination_record vr
+       JOIN vaccination v ON vr.vaccine_id = v.vaccine_id
+       JOIN baby        b ON vr.baby_id    = b.baby_id
+       WHERE b.user_id = ?
+         AND vr.status = 'scheduled'
+         AND vr.vaccination_date < CURDATE()
+       ORDER BY vr.vaccination_date DESC`,
+      [user_id]
+    );
+
     // ─────────────────────────────────────────────
     // 4. UPCOMING APPOINTMENTS (next 3)
     // ─────────────────────────────────────────────
@@ -150,14 +232,12 @@ exports.getDashboard = async (req, res) => {
     let assignedDoctor = null;
 
     if (upcomingAppointments.length > 0) {
-      // Use the soonest upcoming appointment
       const next = upcomingAppointments[0];
       assignedDoctor = {
         name: next.doctor_name,
         specialization: next.specialization,
       };
     } else {
-      // Fall back to latest historical appointment
       const [pastRows] = await pool.query(
         `SELECT
            CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
@@ -170,7 +250,6 @@ exports.getDashboard = async (req, res) => {
          LIMIT 1`,
         [user_id]
       );
-
       if (pastRows.length > 0) {
         assignedDoctor = {
           name: pastRows[0].doctor_name,
@@ -183,44 +262,64 @@ exports.getDashboard = async (req, res) => {
     // 6. BUILD & RETURN RESPONSE
     // ─────────────────────────────────────────────
     return res.json({
-      user: {
-        name: `${user.first_name} ${user.last_name}`,
-        phone: user.phone || null,
-        city: null, // extend if city column is added to user table
-        age: null,  // extend if date_of_birth column is available
-      },
+    user: {
+      name: `${user.first_name} ${user.last_name}`,
+      phone: user.phone || null,
+      city: null, // extend if city column is added to user table
+      age: null,  // extend if date_of_birth column is available
+    },
 
-      pregnancy: pregnancyData
-        ? {
-          pregnancy_id: pregnancyData.pregnancy_id,
-          week: pregnancyData.week,
-          daysToDue: pregnancyData.daysToDue,
-          pregnancyCount: pregnancyData.pregnancyCount,
-          start_date: pregnancyData.start_date,
-          due_date: pregnancyData.due_date,
-        }
-        : null,
+    pregnancy: pregnancyData
+      ? {
+        pregnancy_id: pregnancyData.pregnancy_id,
+        week: pregnancyData.week,
+        daysToDue: pregnancyData.daysToDue,
+        pregnancyCount: pregnancyData.pregnancyCount,
+        start_date: pregnancyData.start_date,
+        due_date: pregnancyData.due_date,
+      }
+      : null,
 
-      summary: {
-        appointments: appointmentCount,
-        tests: testCount,
-        medications: medicationCount,
-        alerts: alertCount,
-      },
+    babies: babyRows,
+    phase,
 
-      appointments: upcomingAppointments.map((appt) => ({
-        appointment_id: appt.appointment_id,
-        doctor: appt.doctor_name,
-        hospital: appt.hospital_name,
-        date: appt.appointment_date,
-        time_slot: appt.time_slot || null,
-        status: appt.status,
-      })),
+    summary: {
+      appointments: appointmentCount,
+      tests: testCount,
+      medications: medicationCount,
+      alerts: alertCount,
+      staleAppointments: staleAppointments.length,
+      staleVaccinations: staleVaccinations.length,
+    },
 
-      assignedDoctor,
-    });
-  } catch (err) {
-    console.error("❌ Dashboard error:", err);
-    return res.status(500).json({ message: "Server error.", error: err.message });
-  }
+    appointments: upcomingAppointments.map((appt) => ({
+      appointment_id: appt.appointment_id,
+      doctor: appt.doctor_name,
+      hospital: appt.hospital_name,
+      date: appt.appointment_date,
+      time_slot: appt.time_slot || null,
+      status: appt.status,
+    })),
+
+    staleAppointments: staleAppointments.map((appt) => ({
+      appointment_id: appt.appointment_id,
+      doctor: appt.doctor_name,
+      hospital: appt.hospital_name,
+      date: appt.appointment_date,
+    })),
+
+    staleVaccinations: staleVaccinations.map((v) => ({
+      vacc_record_id: v.vacc_record_id,
+      vaccine_name: v.vaccine_name,
+      baby_name: v.baby_name,
+      date: v.vaccination_date,
+    })),
+
+    latestPregnancy,
+    assignedDoctor,
+  });
+} catch (err) {
+  console.error("❌ Dashboard error:", err);
+  return res.status(500).json({ message: "Server error.", error: err.message });
+}
 };

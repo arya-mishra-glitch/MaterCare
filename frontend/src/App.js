@@ -12,6 +12,8 @@ import Reminders from "./pages/Reminders";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
+import AddBaby from "./pages/AddBaby";
+import BabyProfile from "./pages/BabyProfile";
 import NotFound from "./pages/NotFound";
 import SidebarLayout from "./components/SidebarLayout";
 import { useEffect, useState } from "react";
@@ -25,12 +27,17 @@ function PrivateRoute({ children }) {
 
   useEffect(() => {
     if (token) {
-      api.get("/pregnancy/week")
-        .then(() => setNeedsOnboarding(false))
-        .catch((e) => {
-           if (e.response && e.response.status === 404) {
-              setNeedsOnboarding(true);
-           }
+      api.get("/pregnancy/status")
+        .then((res) => {
+          if (res.data.phase === "onboarding") {
+            setNeedsOnboarding(true);
+          } else {
+            setNeedsOnboarding(false);
+          }
+        })
+        .catch(() => {
+          // Fallback or error handling
+          setNeedsOnboarding(false); 
         })
         .finally(() => setPregnancyChecked(true));
     } else {
@@ -66,6 +73,8 @@ function App() {
           <Route path="/reminders" element={<Reminders />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/baby" element={<BabyProfile />} />
+          <Route path="/baby/add" element={<AddBaby />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
