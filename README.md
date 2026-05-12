@@ -131,7 +131,7 @@ CREATE DATABASE matercare;
 Import:
 
 ```bash
-database/matercare.sql
+database/matercare_complete.sql
 ```
 
 ---
